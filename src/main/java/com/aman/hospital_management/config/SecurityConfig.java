@@ -77,4 +77,41 @@ public class SecurityConfig {
 
         return http.build();
     }
+
+//    @Bean
+//    public SecurityFilterChain securityFilterChain(
+//            HttpSecurity http
+//    ) throws Exception {
+//
+//        http
+//                .csrf(csrf -> csrf.disable())
+//                .authorizeHttpRequests(auth -> auth
+//                        // 1. Allow everyone to access Authentication APIs (Register/Login)
+//                        .requestMatchers("/api/auth/**").permitAll()
+//
+//                        // 2. Admin Only Endpoints
+//                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+//
+//                        // 3. Doctor Only Endpoints
+//                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+//
+//                        // 4. Nurse Only Endpoints
+//                        .requestMatchers("/api/nurse/**").hasRole("NURSE")
+//
+//                        // 5. Shared Medical Access (Both Doctors and Nurses can access)
+//                        .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
+//
+//                        // 6. Medical Staff / Management Endpoints (Billing, Inventory, Scheduling)
+//                        .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
+//
+//                        // 7. Patient Only Endpoints
+//                        .requestMatchers("/api/patient/**").hasRole("PATIENT")
+//
+//                        // 8. Any other endpoint not listed above requires the user to just be logged in
+//                        .anyRequest().authenticated()
+//                );
+//
+//        return http.build();
+//    }
+
 }

@@ -3,6 +3,8 @@ package com.aman.hospital_management.service;
 import com.aman.hospital_management.dto.AuthResponse;
 import com.aman.hospital_management.dto.LoginRequest;
 import com.aman.hospital_management.dto.RegisterRequest;
+import com.aman.hospital_management.exception.EmailAlreadyExistsException;
+import com.aman.hospital_management.exception.UserNotFoundException;
 import com.aman.hospital_management.model.AppUser;
 import com.aman.hospital_management.repository.UserRepository;
 import com.aman.hospital_management.security.JwtService;
@@ -50,7 +52,7 @@ public class AuthService {
 
         if (userRepository.existsByEmail(request.getEmail())) {
 
-            throw new RuntimeException(
+            throw new EmailAlreadyExistsException(
                     "User with this email already exists"
             );
         }
@@ -102,7 +104,7 @@ public class AuthService {
         AppUser user =
                 userRepository.findByEmail(request.getEmail())
                         .orElseThrow(() ->
-                                new RuntimeException("User not found")
+                                new UserNotFoundException("User not found")
                         );
 
 
