@@ -1,6 +1,8 @@
 package com.aman.hospital_management.security;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -52,5 +54,14 @@ public class JwtService {
                 .signWith(secretKey)
 
                 .compact();
+    }
+
+    /** Parse the token only after verifying its signature and expiration. */
+    public Claims extractClaims(String token) throws JwtException {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

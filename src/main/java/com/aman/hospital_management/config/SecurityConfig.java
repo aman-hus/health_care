@@ -1,6 +1,8 @@
 package com.aman.hospital_management.config;
 
 import com.aman.hospital_management.security.CustomUserDetailsService;
+import com.aman.hospital_management.security.JwtAuthenticationFilter;
+import com.aman.hospital_management.security.JwtService;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,22 +12,30 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
+    private final JwtService jwtService;
 
     public SecurityConfig(
-            CustomUserDetailsService userDetailsService
+            CustomUserDetailsService userDetailsService,
+            JwtService jwtService
     ) {
         this.userDetailsService = userDetailsService;
+        this.jwtService = jwtService;
     }
 
 
@@ -58,60 +68,52 @@ public class SecurityConfig {
     }
 
 
+    /** Keep registration and login outside the authenticated API chain. */
     @Bean
-    public SecurityFilterChain securityFilterChain(
+    @Order(1)
+    public SecurityFilterChain authEndpoints(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/auth/**")
+                .csrf(csrf -> csrf.disable())
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain apiEndpoints(
             HttpSecurity http
     ) throws Exception {
 
         http
+                .securityMatcher("/api/**")
                 .csrf(csrf -> csrf.disable())
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .addFilterBefore(
+                        new JwtAuthenticationFilter(jwtService, userDetailsService),
+                        UsernamePasswordAuthenticationFilter.class
+                )
 
                 .authorizeHttpRequests(auth -> auth
-
-                        .requestMatchers(
-                                "/api/auth/**"
-                        ).permitAll()
-
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+                        .requestMatchers("/api/nurse/**").hasRole("NURSE")
+                        .requestMatchers("/api/medical-staff/**").hasRole("MEDICAL_STAFF")
+                        .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
+                        .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
+                        .requestMatchers("/api/patient/**").hasRole("PATIENT")
                         .anyRequest().authenticated()
                 );
 
         return http.build();
     }
-
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(
-//            HttpSecurity http
-//    ) throws Exception {
-//
-//        http
-//                .csrf(csrf -> csrf.disable())
-//                .authorizeHttpRequests(auth -> auth
-//                        // 1. Allow everyone to access Authentication APIs (Register/Login)
-//                        .requestMatchers("/api/auth/**").permitAll()
-//
-//                        // 2. Admin Only Endpoints
-//                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-//
-//                        // 3. Doctor Only Endpoints
-//                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
-//
-//                        // 4. Nurse Only Endpoints
-//                        .requestMatchers("/api/nurse/**").hasRole("NURSE")
-//
-//                        // 5. Shared Medical Access (Both Doctors and Nurses can access)
-//                        .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
-//
-//                        // 6. Medical Staff / Management Endpoints (Billing, Inventory, Scheduling)
-//                        .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
-//
-//                        // 7. Patient Only Endpoints
-//                        .requestMatchers("/api/patient/**").hasRole("PATIENT")
-//
-//                        // 8. Any other endpoint not listed above requires the user to just be logged in
-//                        .anyRequest().authenticated()
-//                );
-//
-//        return http.build();
-//    }
 
 }
