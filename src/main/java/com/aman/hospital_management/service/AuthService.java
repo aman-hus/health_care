@@ -6,6 +6,7 @@ import com.aman.hospital_management.dto.RegisterRequest;
 import com.aman.hospital_management.exception.EmailAlreadyExistsException;
 import com.aman.hospital_management.exception.UserNotFoundException;
 import com.aman.hospital_management.model.AppUser;
+import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.repository.UserRepository;
 import com.aman.hospital_management.security.JwtService;
 
@@ -19,31 +20,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.springframework.stereotype.Service;
 import com.aman.hospital_management.dto.UserResponse;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
-
     private final PasswordEncoder passwordEncoder;
-
     private final AuthenticationManager authenticationManager;
-
     private final JwtService jwtService;
-
-
-    public AuthService(
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager,
-            JwtService jwtService
-    ) {
-
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-    }
 
 
 
@@ -66,7 +52,7 @@ public class AuthService {
                 request.getName(),
                 request.getEmail(),
                 encodedPassword,
-                request.getRole()
+                Role.PATIENT
         );
 
 

@@ -1,12 +1,14 @@
 package com.aman.hospital_management.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -26,8 +28,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnreadableRequest(HttpMessageNotReadableException ex) {
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(), "Bad Request",
-                "Invalid request body. Role must be ADMIN, DOCTOR, PATIENT, NURSE, or MEDICAL_STAFF.");
+                "Invalid request body or field value.");
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatusCode status = ex.getStatusCode();
+        HttpStatus knownStatus = HttpStatus.resolve(status.value());
+        String errorName = knownStatus != null ? knownStatus.getReasonPhrase() : "Request Failed";
+        String message = ex.getReason() != null ? ex.getReason() : errorName;
+        ErrorResponse error = new ErrorResponse(status.value(), errorName, message);
+        return ResponseEntity.status(status).body(error);
     }
 
     // Handles Duplicate Email Registration

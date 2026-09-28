@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "Hospital Management API",
+    "description": "Smoke checks for authentication and patient profile endpoints. Uses synthetic data and expects the API at http://localhost:8080.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Patient profile requires authentication",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/patient/profile"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Unauthenticated request is rejected with 401', function () {",
+              "    pm.response.to.have.status(401);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.status).to.eql(401);",
+              "    pm.expect(body.error).to.eql('Unauthorized');",
+              "    pm.expect(body.message).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register patient (role escalation check)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('testEmail', 'postman.test.' + Date.now() + '@example.com');",
+              "pm.environment.set('testPassword', 'PostmanTestPass123!');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registration returns 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Public registration always assigns PATIENT', function () {",
+              "    pm.expect(pm.response.json().role).to.eql('PATIENT');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman Test Patient\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"role\": \"ADMIN\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login returns 200 and a token', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().token).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.environment.set('token', pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Create patient profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profile creation returns 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Response contains synthetic profile data', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.phoneNumber).to.eql('000-000-0000');",
+              "    pm.expect(body.id).to.exist;",
+              "    pm.environment.set('profileId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\",\n  \"address\": \"Postman Test Address\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0001\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/patient/profile"
+      }
+    },
+    {
+      "name": "Get patient profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profile retrieval returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Retrieved profile belongs to the signed-in test patient', function () {",
+              "    pm.expect(pm.response.json().id).to.eql(pm.environment.get('profileId'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/patient/profile" }
+    },
+    {
+      "name": "Update patient profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profile update returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Updated phone number is returned', function () {",
+              "    pm.expect(pm.response.json().phoneNumber).to.eql('000-000-0002');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0002\",\n  \"address\": \"Postman Test Address Updated\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0003\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/patient/profile"
+      }
+    },
+    {
+      "name": "Duplicate patient profile returns conflict",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Duplicate profile creation returns 409', function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/patient/profile"
+      }
+    },
+    {
+      "name": "Register a second patient",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.set('otherTestEmail', 'postman.other.' + Date.now() + '@example.com');",
+              "pm.environment.set('otherTestPassword', 'PostmanOtherTestPass123!');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Second patient registration returns 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('Second patient is assigned PATIENT role', function () {",
+              "    pm.expect(pm.response.json().role).to.eql('PATIENT');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman Other Test Patient\",\n  \"email\": \"{{otherTestEmail}}\",\n  \"password\": \"{{otherTestPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Login as second patient",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Second patient login returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.environment.set('otherPatientToken', pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{otherTestEmail}}\",\n  \"password\": \"{{otherTestPassword}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Second patient cannot see first patient's profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Second patient receives 404 for their own missing profile', function () {",
+              "    pm.response.to.have.status(404);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.detail || body.message).to.eql('Patient profile not found');",
+              "    pm.expect(body.phoneNumber).to.be.undefined;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{otherPatientToken}}", "type": "string" }]
+        },
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/patient/profile"
+      }
+    }
+  ]
+}

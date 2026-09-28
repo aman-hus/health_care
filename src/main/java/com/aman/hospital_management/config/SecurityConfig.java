@@ -3,6 +3,7 @@ package com.aman.hospital_management.config;
 import com.aman.hospital_management.security.CustomUserDetailsService;
 import com.aman.hospital_management.security.JwtAuthenticationFilter;
 import com.aman.hospital_management.security.JwtService;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,13 +16,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.io.IOException;
 
 @Configuration
 @EnableWebSecurity
@@ -96,7 +99,18 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                        .authenticationEntryPoint((request, response, exception) -> writeSecurityError(
+                                response,
+                                HttpStatus.UNAUTHORIZED,
+                                "Unauthorized",
+                                "Authentication is required to access this resource."
+                        ))
+                        .accessDeniedHandler((request, response, exception) -> writeSecurityError(
+                                response,
+                                HttpStatus.FORBIDDEN,
+                                "Forbidden",
+                                "Your account does not have permission to access this resource."
+                        )))
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtService, userDetailsService),
                         UsernamePasswordAuthenticationFilter.class
@@ -114,6 +128,19 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    private void writeSecurityError(
+            HttpServletResponse response,
+            HttpStatus status,
+            String error,
+            String message
+    ) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write("{\"status\":" + status.value()
+                + ",\"error\":\"" + error
+                + "\",\"message\":\"" + message + "\"}");
     }
 
 }
