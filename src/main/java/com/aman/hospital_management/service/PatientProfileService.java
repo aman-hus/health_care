@@ -34,16 +34,18 @@ public class PatientProfileService {
     }
 
     @Transactional(readOnly = true)
-    public PatientProfileResponse get(String email) {
+    public PatientProfileResponse get(String email, Long userId) {
         AppUser user = findUser(email);
+        requireOwnProfile(user, userId);
         PatientProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient profile not found"));
         return toResponse(profile);
     }
 
     @Transactional
-    public PatientProfileResponse update(String email, PatientProfileRequest request) {
+    public PatientProfileResponse update(String email, Long userId, PatientProfileRequest request) {
         AppUser user = findUser(email);
+        requireOwnProfile(user, userId);
         PatientProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient profile not found"));
         apply(profile, request);
@@ -53,6 +55,12 @@ public class PatientProfileService {
     private AppUser findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
+    }
+
+    private void requireOwnProfile(AppUser user, Long userId) {
+        if (!user.getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own profile");
+        }
     }
 
     private void apply(PatientProfile profile, PatientProfileRequest request) {

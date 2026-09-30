@@ -52,7 +52,7 @@ public class AuthService {
                 request.getName(),
                 request.getEmail(),
                 encodedPassword,
-                Role.PATIENT
+                request.getRole()
         );
 
 

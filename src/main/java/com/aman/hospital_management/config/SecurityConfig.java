@@ -71,7 +71,7 @@ public class SecurityConfig {
     }
 
 
-    /** Keep registration and login outside the authenticated API chain. */
+    /** Login is public; account creation is handled by the admin API chain. */
     @Bean
     @Order(1)
     public SecurityFilterChain authEndpoints(HttpSecurity http) throws Exception {
@@ -80,7 +80,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/login").permitAll()
+                        .anyRequest().denyAll());
 
         return http.build();
     }
@@ -123,7 +125,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/medical-staff/**").hasRole("MEDICAL_STAFF")
                         .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
                         .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
-                        .requestMatchers("/api/patient/**").hasRole("PATIENT")
+                        .requestMatchers("/api/profile/**").authenticated()
                         .anyRequest().authenticated()
                 );
 

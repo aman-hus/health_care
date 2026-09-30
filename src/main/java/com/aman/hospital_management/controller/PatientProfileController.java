@@ -11,7 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/patient/profile")
+@RequestMapping("/api/profile")
 @RequiredArgsConstructor
 public class PatientProfileController {
 
@@ -25,15 +25,16 @@ public class PatientProfileController {
                 .body(profileService.create(authentication.getName(), request));
     }
 
-    @GetMapping
-    public PatientProfileResponse get(Authentication authentication) {
-        return profileService.get(authentication.getName());
+    @GetMapping("/{userId}")
+    public PatientProfileResponse get(Authentication authentication, @PathVariable Long userId) {
+        return profileService.get(authentication.getName(), userId);
     }
 
-    @PutMapping
+    @PutMapping("/{userId}")
     public PatientProfileResponse update(
             Authentication authentication,
+            @PathVariable Long userId,
             @Valid @RequestBody PatientProfileRequest request) {
-        return profileService.update(authentication.getName(), request);
+        return profileService.update(authentication.getName(), userId, request);
     }
 }
