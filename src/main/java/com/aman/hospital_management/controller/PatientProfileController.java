@@ -30,6 +30,8 @@ public class PatientProfileController {
         return profileService.get(authentication.getName(), userId);
     }
 
+
+
     @PutMapping("/{userId}")
     public PatientProfileResponse update(
             Authentication authentication,

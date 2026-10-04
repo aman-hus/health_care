@@ -1,299 +1,373 @@
 {
   "info": {
     "name": "Hospital Management API",
-    "description": "Smoke checks for authentication and patient profile endpoints. Uses synthetic data and expects the API at http://localhost:8080.",
+    "description": "Organized by feature. Start with Authentication > Initial Admin Setup once on a fresh database. Then log in as admin and use Admin > User Management. Run the Patient Profile requests after creating and logging in as a patient.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      { "key": "token", "value": "{{token}}", "type": "string" }
-    ]
-  },
+  "auth": { "type": "noauth" },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" }
+  ],
   "item": [
     {
-      "name": "Patient profile requires authentication",
-      "request": {
-        "auth": { "type": "noauth" },
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/patient/profile"
-      },
-      "event": [
+      "name": "Authentication",
+      "description": "Public authentication endpoints. Initial Admin Setup is for a fresh database and succeeds only once.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Unauthenticated request is rejected with 401', function () {",
-              "    pm.response.to.have.status(401);",
-              "    const body = pm.response.json();",
-              "    pm.expect(body.status).to.eql(401);",
-              "    pm.expect(body.error).to.eql('Unauthorized');",
-              "    pm.expect(body.message).to.be.a('string').and.not.empty;",
-              "});"
-            ]
+          "name": "Initial Admin Setup (run once)",
+          "description": "Creates the first ADMIN while there are no users. Set adminName, adminEmail, and adminPassword in the environment first. The role is assigned by the server.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('First admin is created', function () {",
+            "    pm.response.to.have.status(201);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.role).to.eql('ADMIN');",
+            "    pm.environment.set('adminId', body.id);",
+            "});"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/auth/bootstrap-admin"
+          }
+        },
+        {
+          "name": "Admin Login",
+          "description": "Logs in and saves the JWT as adminToken for the Admin folder requests.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Admin login returns token and ADMIN role', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.token).to.be.a('string').and.not.empty;",
+            "    pm.expect(body.role).to.eql('ADMIN');",
+            "    pm.environment.set('adminToken', body.token);",
+            "    pm.environment.set('adminId', body.userId);",
+            "});"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Patient Login",
+          "description": "Logs in as the patient created by Admin > User Management and saves userToken/userId.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Patient login returns token and PATIENT role', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.role).to.eql('PATIENT');",
+            "    pm.environment.set('userToken', body.token);",
+            "    pm.environment.set('userId', body.userId);",
+            "});"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Nurse Login",
+          "description": "Logs in as a nurse and saves nurseToken. Set nurseEmail and nursePassword in the environment first.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Nurse login returns token and NURSE role', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.role).to.eql('NURSE');",
+            "    pm.environment.set('nurseToken', body.token);",
+            "    pm.environment.set('nurseId', body.userId);",
+            "});"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{nurseEmail}}\",\n  \"password\": \"{{nursePassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Doctor Login",
+          "description": "Logs in as a doctor and saves doctorToken. Set doctorEmail and doctorPassword in the environment first.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Doctor login returns token and DOCTOR role', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.role).to.eql('DOCTOR');",
+            "    pm.environment.set('doctorToken', body.token);",
+            "    pm.environment.set('doctorId', body.userId);",
+            "});"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"{{doctorPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/auth/login"
           }
         }
       ]
     },
     {
-      "name": "Register patient (role escalation check)",
-      "event": [
+      "name": "Admin",
+      "description": "Admin-only features. Set adminToken by running Authentication > Admin Login.",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+      "item": [
         {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.environment.set('testEmail', 'postman.test.' + Date.now() + '@example.com');",
-              "pm.environment.set('testPassword', 'PostmanTestPass123!');"
-            ]
-          }
+          "name": "User Management",
+          "description": "Create users with the role they need. Change newUserRole as required (ADMIN, DOCTOR, PATIENT, NURSE, MEDICAL_STAFF).",
+          "item": [
+            {
+              "name": "Create User",
+              "event": [
+                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+                  "if (!pm.environment.get('newUserEmail')) pm.environment.set('newUserEmail', 'postman.patient.' + Date.now() + '@example.com');",
+                  "if (!pm.environment.get('newUserPassword')) pm.environment.set('newUserPassword', 'PostmanPatientPass123!');",
+                  "if (!pm.environment.get('newUserName')) pm.environment.set('newUserName', 'Postman Test Patient');",
+                  "if (!pm.environment.get('newUserRole')) pm.environment.set('newUserRole', 'PATIENT');"
+                ] } },
+                { "listen": "test", "script": { "type": "text/javascript", "exec": [
+                  "pm.test('User created with requested role', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql(pm.environment.get('newUserRole') || 'PATIENT');",
+                  "    pm.expect(body.enabled).to.eql(true);",
+                  "    pm.environment.set('userId', body.id);",
+                  "});"
+                ] } }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\"\n}", "options": { "raw": { "language": "json" } } },
+                "url": "{{baseUrl}}/api/admin/users"
+              }
+            }
+          ]
         },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Registration returns 201', function () { pm.response.to.have.status(201); });",
-              "pm.test('Public registration always assigns PATIENT', function () {",
-              "    pm.expect(pm.response.json().role).to.eql('PATIENT');",
-              "});"
-            ]
-          }
+          "name": "Authorization Checks",
+          "description": "Role-denial checks. Run Admin Login and Patient Login first.",
+          "item": [
+            {
+              "name": "Reject User Creation Without Token",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Unauthenticated user creation returns 401', function () { pm.response.to.have.status(401); });"
+              ] } }],
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Unauthorized Attempt\",\n  \"email\": \"unauthorized@example.com\",\n  \"password\": \"NotARealPass123!\",\n  \"role\": \"PATIENT\"\n}", "options": { "raw": { "language": "json" } } },
+                "url": "{{baseUrl}}/api/admin/users"
+              }
+            },
+            {
+              "name": "Reject User Creation With Patient Token",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Non-admin user creation returns 403', function () { pm.response.to.have.status(403); });"
+              ] } }],
+              "request": {
+                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Should Not Be Created\",\n  \"email\": \"forbidden@example.com\",\n  \"password\": \"NotARealPass123!\",\n  \"role\": \"PATIENT\"\n}", "options": { "raw": { "language": "json" } } },
+                "url": "{{baseUrl}}/api/admin/users"
+              }
+            },
+            {
+              "name": "Reject Patient Profile Read With Admin Token",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Admin role cannot access patient-only profile routes', function () { pm.response.to.have.status(403); });"
+              ] } }],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/profile/{{userId}}"
+              }
+            },
+            {
+              "name": "Deny Unconfigured API Route By Default",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Authenticated request to an unconfigured API route returns 403', function () { pm.response.to.have.status(403); });"
+              ] } }],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/rbac-policy-check"
+              }
+            }
+          ]
         }
-      ],
-      "request": {
-        "auth": { "type": "noauth" },
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Postman Test Patient\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"role\": \"ADMIN\"\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "url": "{{baseUrl}}/api/auth/register"
-      }
+      ]
     },
     {
-      "name": "Login",
-      "event": [
+      "name": "Appointments",
+      "description": "Patients can book for themselves. Admins and nurses can book for a patient by ID. Admins can view all appointments; patients, nurses, and doctors can view only their own or assigned appointments.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Login returns 200 and a token', function () {",
-              "    pm.response.to.have.status(200);",
-              "    pm.expect(pm.response.json().token).to.be.a('string').and.not.empty;",
-              "});",
-              "pm.environment.set('token', pm.response.json().token);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "auth": { "type": "noauth" },
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
-          "options": { "raw": { "language": "json" } }
+          "name": "Patient",
+          "description": "Run Authentication > Patient Login first.",
+          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+          "item": [
+            {
+              "name": "Book Appointment For Myself",
+              "event": [
+                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+                  "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                  "appointmentAt.setHours(10, 0, 0, 0);",
+                  "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+                ] } },
+                { "listen": "test", "script": { "type": "text/javascript", "exec": [
+                  "pm.test('Patient appointment is created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(String(body.patientId)).to.eql(String(pm.environment.get('userId')));",
+                  "    pm.environment.set('appointmentId', body.id);",
+                  "});"
+                ] } }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Postman test appointment\"\n}", "options": { "raw": { "language": "json" } } },
+                "url": "{{baseUrl}}/api/appointments"
+              }
+            },
+            {
+              "name": "Get My Appointments",
+              "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" }
+            }
+          ]
         },
-        "url": "{{baseUrl}}/api/auth/login"
-      }
+        {
+          "name": "Nurse",
+          "description": "Run Authentication > Nurse Login first. Set patientId and doctorId from Admin > User Management or prior login results.",
+          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{nurseToken}}", "type": "string" }] },
+          "item": [
+            {
+              "name": "Book Appointment For Patient",
+              "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+                "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                "appointmentAt.setHours(11, 0, 0, 0);",
+                "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+              ] } }],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"patientId\": {{userId}},\n  \"doctorId\": {{doctorId}},\n  \"nurseId\": {{nurseId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Nurse booked appointment\"\n}", "options": { "raw": { "language": "json" } } },
+                "url": "{{baseUrl}}/api/appointments"
+              }
+            },
+            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } }
+          ]
+        },
+        {
+          "name": "Doctor",
+          "description": "Run Authentication > Doctor Login first.",
+          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+          "item": [
+            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } }
+          ]
+        },
+        {
+          "name": "Admin",
+          "description": "Run Authentication > Admin Login first.",
+          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+          "item": [
+            {
+              "name": "Book Appointment For Patient",
+              "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+                "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                "appointmentAt.setHours(12, 0, 0, 0);",
+                "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+              ] } }],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"patientId\": {{userId}},\n  \"doctorId\": {{doctorId}},\n  \"nurseId\": {{nurseId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Admin booked appointment\"\n}", "options": { "raw": { "language": "json" } } },
+                "url": "{{baseUrl}}/api/appointments"
+              }
+            },
+            { "name": "Get All Appointments", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments" } }
+          ]
+        }
+      ]
     },
     {
-      "name": "Create patient profile",
-      "event": [
+      "name": "Patient Profile",
+      "description": "Patient profile operations. Run Patient Login first to populate userToken and userId.",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Profile creation returns 201', function () { pm.response.to.have.status(201); });",
-              "pm.test('Response contains synthetic profile data', function () {",
-              "    const body = pm.response.json();",
-              "    pm.expect(body.phoneNumber).to.eql('000-000-0000');",
-              "    pm.expect(body.id).to.exist;",
-              "    pm.environment.set('profileId', body.id);",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\",\n  \"address\": \"Postman Test Address\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0001\"\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "url": "{{baseUrl}}/api/patient/profile"
-      }
-    },
-    {
-      "name": "Get patient profile",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Profile retrieval returns 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Retrieved profile belongs to the signed-in test patient', function () {",
-              "    pm.expect(pm.response.json().id).to.eql(pm.environment.get('profileId'));",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/patient/profile" }
-    },
-    {
-      "name": "Update patient profile",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Profile update returns 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Updated phone number is returned', function () {",
-              "    pm.expect(pm.response.json().phoneNumber).to.eql('000-000-0002');",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "PUT",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0002\",\n  \"address\": \"Postman Test Address Updated\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0003\"\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "url": "{{baseUrl}}/api/patient/profile"
-      }
-    },
-    {
-      "name": "Duplicate patient profile returns conflict",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Duplicate profile creation returns 409', function () { pm.response.to.have.status(409); });"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\"\n}",
-          "options": { "raw": { "language": "json" } }
-        },
-        "url": "{{baseUrl}}/api/patient/profile"
-      }
-    },
-    {
-      "name": "Register a second patient",
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.environment.set('otherTestEmail', 'postman.other.' + Date.now() + '@example.com');",
-              "pm.environment.set('otherTestPassword', 'PostmanOtherTestPass123!');"
-            ]
+          "name": "Create Own Profile",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Profile creation returns 201', function () {",
+            "    pm.response.to.have.status(201);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.id).to.exist;",
+            "    pm.environment.set('profileId', body.id);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\",\n  \"address\": \"Postman Test Address\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0001\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/profile"
           }
         },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Second patient registration returns 201', function () { pm.response.to.have.status(201); });",
-              "pm.test('Second patient is assigned PATIENT role', function () {",
-              "    pm.expect(pm.response.json().role).to.eql('PATIENT');",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "auth": { "type": "noauth" },
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Postman Other Test Patient\",\n  \"email\": \"{{otherTestEmail}}\",\n  \"password\": \"{{otherTestPassword}}\"\n}",
-          "options": { "raw": { "language": "json" } }
+          "name": "Get Own Profile",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Own profile fetch returns 200', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(String(pm.response.json().id)).to.eql(String(pm.environment.get('profileId')));",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/profile/{{userId}}" }
         },
-        "url": "{{baseUrl}}/api/auth/register"
-      }
-    },
-    {
-      "name": "Login as second patient",
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Second patient login returns 200', function () { pm.response.to.have.status(200); });",
-              "pm.environment.set('otherPatientToken', pm.response.json().token);"
-            ]
+          "name": "Update Own Profile",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Own profile update returns updated data', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().phoneNumber).to.eql('000-000-0002');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0002\",\n  \"address\": \"Updated Postman Test Address\",\n  \"emergencyContactName\": \"Updated Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0003\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/profile/{{userId}}"
           }
-        }
-      ],
-      "request": {
-        "auth": { "type": "noauth" },
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{otherTestEmail}}\",\n  \"password\": \"{{otherTestPassword}}\"\n}",
-          "options": { "raw": { "language": "json" } }
         },
-        "url": "{{baseUrl}}/api/auth/login"
-      }
-    },
-    {
-      "name": "Second patient cannot see first patient's profile",
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Second patient receives 404 for their own missing profile', function () {",
-              "    pm.response.to.have.status(404);",
-              "    const body = pm.response.json();",
-              "    pm.expect(body.detail || body.message).to.eql('Patient profile not found');",
-              "    pm.expect(body.phoneNumber).to.be.undefined;",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [{ "key": "token", "value": "{{otherPatientToken}}", "type": "string" }]
+          "name": "Reject Unauthenticated Profile Read",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Unauthenticated profile fetch returns 401', function () { pm.response.to.have.status(401); });"
+          ] } }],
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/api/profile/{{userId}}" }
         },
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/api/patient/profile"
-      }
+        {
+          "name": "Reject Reading Another User Profile",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.environment.set('otherUserId', String(Number(pm.environment.get('userId')) + 999999));"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Reading another account profile returns 403', function () { pm.response.to.have.status(403); });"
+            ] } }
+          ],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/profile/{{otherUserId}}" }
+        }
+      ]
     }
   ]
 }

@@ -71,7 +71,7 @@ public class SecurityConfig {
     }
 
 
-    /** Login is public; account creation is handled by the admin API chain. */
+    /** Login and first-admin bootstrap are public; bootstrap closes after initial setup. */
     @Bean
     @Order(1)
     public SecurityFilterChain authEndpoints(HttpSecurity http) throws Exception {
@@ -81,7 +81,7 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/bootstrap-admin").permitAll()
                         .anyRequest().denyAll());
 
         return http.build();
@@ -124,9 +124,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/nurse/**").hasRole("NURSE")
                         .requestMatchers("/api/medical-staff/**").hasRole("MEDICAL_STAFF")
                         .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
+                        .requestMatchers("/api/appointments/**").hasAnyRole("ADMIN", "NURSE", "DOCTOR", "PATIENT")
                         .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
-                        .requestMatchers("/api/profile/**").authenticated()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/profile/**").hasRole("PATIENT")
+                        // New API routes must receive an explicit role policy before they are accessible.
+                        .anyRequest().denyAll()
                 );
 
         return http.build();
