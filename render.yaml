@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: hospital-management-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: DEV_DB_URL
+        sync: false
+      - key: DEV_DB_USERNAME
+        sync: false
+      - key: DEV_DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
