@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Frontend integration guide for the Hospital Management appointment APIs">
+  <title>Appointment API Integration Guide</title>
+  <style>
+    :root { color-scheme: light; --ink: #1b2b3a; --muted: #526579; --line: #d9e2ec; --blue: #155eef; --panel: #f5f8fc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eef3f8; color: var(--ink); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 1000px; margin: 32px auto; padding: 48px 58px; background: white; box-shadow: 0 8px 30px #1b2b3a12; }
+    h1 { margin: 0 0 8px; font-size: 2.25rem; line-height: 1.2; }
+    h2 { margin-top: 2.4rem; padding-bottom: .45rem; border-bottom: 1px solid var(--line); font-size: 1.5rem; }
+    h3 { margin-top: 1.6rem; font-size: 1.15rem; }
+    p, li { color: #314457; }
+    .intro { margin-top: 0; color: var(--muted); }
+    code { padding: .12em .35em; border-radius: 4px; background: #edf2f7; color: #172b4d; font: .92em ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+    pre { overflow-x: auto; padding: 16px 18px; border-radius: 8px; background: #102235; color: #e9f2fc; line-height: 1.5; }
+    pre code { padding: 0; background: transparent; color: inherit; overflow-wrap: normal; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: .94rem; }
+    th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--panel); }
+    .callout { padding: 14px 18px; border-left: 4px solid var(--blue); background: var(--panel); }
+    a { color: var(--blue); }
+    @media (max-width: 700px) { main { margin: 0; padding: 28px 20px; } h1 { font-size: 1.8rem; } table { display: block; overflow-x: auto; } }
+    @media print { body { background: white; } main { max-width: none; margin: 0; padding: 0; box-shadow: none; } pre { white-space: pre-wrap; overflow-wrap: anywhere; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Appointment API Integration Guide</h1>
+  <p class="intro">Frontend integration reference for the Hospital Management appointment APIs.</p>
+  <p>This guide documents the appointment endpoints for the frontend. All paths are relative to the backend base URL (for example, <code>http://localhost:8080</code>). Requests and responses use JSON except for a successful delete, which has no response body.</p>
+
+  <h2>Authentication</h2>
+  <p>All appointment endpoints require a JWT access token. Sign in through <code>POST /api/auth/login</code>:</p>
+  <pre><code>{
+  "email": "patient@example.com",
+  "password": "your-password"
+}</code></pre>
+  <p>The response includes the token and signed-in user's ID and role:</p>
+  <pre><code>{
+  "token": "&lt;jwt&gt;",
+  "tokenType": "Bearer",
+  "userId": 42,
+  "name": "Jordan Lee",
+  "email": "patient@example.com",
+  "role": "PATIENT"
+}</code></pre>
+  <p>Send this header on every appointment request:</p>
+  <pre><code>Authorization: Bearer &lt;jwt&gt;
+Content-Type: application/json</code></pre>
+  <p>Supported roles are <code>ADMIN</code>, <code>DOCTOR</code>, <code>PATIENT</code>, <code>NURSE</code>, and <code>MEDICAL_STAFF</code>. The frontend can use the login role to select views, while the backend independently checks authorization and ownership.</p>
+
+  <h2>Endpoint overview</h2>
+  <table><thead><tr><th>Method</th><th>Path</th><th>Allowed roles</th><th>Purpose</th></tr></thead><tbody>
+    <tr><td><code>POST</code></td><td><code>/api/appointments</code></td><td>Admin, nurse, patient</td><td>Book an appointment</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/appointments/mine</code></td><td>Patient, doctor, nurse</td><td>List appointments associated with the signed-in user</td></tr>
+    <tr><td><code>DELETE</code></td><td><code>/api/appointments/{appointmentId}</code></td><td>Patient, doctor</td><td>Delete an appointment associated with the signed-in user</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/admin/appointments</code></td><td>Admin</td><td>List all appointments</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/admin/appointments/patient/{patientId}</code></td><td>Admin</td><td>List appointments for a selected patient</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/admin/appointments/doctor/{doctorId}</code></td><td>Admin</td><td>List appointments for a selected doctor</td></tr>
+  </tbody></table>
+  <p>Appointment lists are ordered by <code>appointmentAt</code>, earliest first. Empty results return <code>200 OK</code> with <code>[]</code>.</p>
+
+  <h2>Book an appointment</h2>
+  <p><code>POST /api/appointments</code></p>
+  <table><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead><tbody>
+    <tr><td><code>patientId</code></td><td>number</td><td>Depends on role</td><td>Patient may omit it or provide their own ID. Admin and nurse must provide a patient ID.</td></tr>
+    <tr><td><code>doctorId</code></td><td>number</td><td>Yes</td><td>Must identify a user with role <code>DOCTOR</code>.</td></tr>
+    <tr><td><code>nurseId</code></td><td>number or <code>null</code></td><td>No</td><td>If supplied, must identify a user with role <code>NURSE</code>.</td></tr>
+    <tr><td><code>appointmentAt</code></td><td>local date-time string</td><td>Yes</td><td>Must be in the future. Format: <code>YYYY-MM-DDTHH:mm:ss</code>.</td></tr>
+    <tr><td><code>reason</code></td><td>string or <code>null</code></td><td>No</td><td>Maximum 1,000 characters.</td></tr>
+  </tbody></table>
+  <p>Patient booking example (the patient ID can be omitted because it is inferred from the token):</p>
+  <pre><code>{
+  "doctorId": 7,
+  "appointmentAt": "2026-10-12T10:30:00",
+  "reason": "Follow-up visit"
+}</code></pre>
+  <p>Admin or nurse booking example:</p>
+  <pre><code>{
+  "patientId": 42,
+  "doctorId": 7,
+  "nurseId": 12,
+  "appointmentAt": "2026-10-12T10:30:00",
+  "reason": "Follow-up visit"
+}</code></pre>
+  <p>Success returns <code>201 Created</code> and an appointment object. A patient cannot book for another patient. Doctors cannot book through this endpoint.</p>
+
+  <h2>List appointments for the signed-in user</h2>
+  <p><code>GET /api/appointments/mine</code> takes no query parameters or request body. The server selects appointments from the authenticated account:</p>
+  <ul><li>Patient receives appointments where they are the patient.</li><li>Doctor receives appointments assigned to them.</li><li>Nurse receives appointments assigned to them.</li><li>Admin and medical staff are not supported and receive <code>403 Forbidden</code>.</li></ul>
+  <p>Success returns <code>200 OK</code> with an array of appointment objects. Patients and doctors use this endpoint to load their appointment list.</p>
+
+  <h2>Delete an appointment</h2>
+  <p><code>DELETE /api/appointments/{appointmentId}</code> takes no request body. A patient can delete an appointment only when they are its patient. A doctor can delete an appointment only when it is assigned to them. Admins, nurses, and medical staff cannot delete through this endpoint.</p>
+  <p>Success returns <code>200 OK</code> with a confirmation message. Display the message, then remove the item from the current list or reload the list. Deleting another user's appointment returns <code>403 Forbidden</code>; a nonexistent appointment returns <code>404 Not Found</code>.</p>
+  <pre><code>{
+  "message": "Appointment deleted successfully."
+}</code></pre>
+
+  <h2>Admin appointment lists</h2>
+  <p>These endpoints require an admin JWT.</p>
+  <h3>All appointments</h3><p><code>GET /api/admin/appointments</code> returns every appointment ordered by appointment time.</p>
+  <h3>Appointments for one patient</h3><p><code>GET /api/admin/appointments/patient/{patientId}</code> takes the selected patient's user ID. The ID must belong to a <code>PATIENT</code>. A missing user returns <code>404 Not Found</code>; an existing user with another role returns <code>400 Bad Request</code>.</p>
+  <h3>Appointments for one doctor</h3><p><code>GET /api/admin/appointments/doctor/{doctorId}</code> takes the selected doctor's user ID. The ID must belong to a <code>DOCTOR</code>. A missing user returns <code>404 Not Found</code>; an existing user with another role returns <code>400 Bad Request</code>.</p>
+  <p>Both scoped endpoints use the same response shape as the all-appointments endpoint and may return an empty array.</p>
+
+  <h2>Appointment response</h2>
+  <pre><code>{
+  "id": 101,
+  "patientId": 42,
+  "patientName": "Jordan Lee",
+  "doctorId": 7,
+  "doctorName": "Dr. Sam Patel",
+  "nurseId": 12,
+  "nurseName": "Taylor Kim",
+  "appointmentAt": "2026-10-12T10:30:00",
+  "reason": "Follow-up visit",
+  "createdAt": "2026-10-06T14:22:31.412"
+}</code></pre>
+  <p><code>nurseId</code> and <code>nurseName</code> are <code>null</code> when no nurse is assigned. <code>appointmentAt</code> and <code>createdAt</code> are ISO local date-time values without a timezone offset. The API currently does not attach a timezone. Use <code>id</code> in the delete path.</p>
+
+  <h2>Errors</h2>
+  <p>Application errors generally use this JSON shape:</p>
+  <pre><code>{
+  "timestamp": "2026-10-06T14:22:31.412",
+  "status": 403,
+  "error": "Forbidden",
+  "message": "You can only delete appointments associated with your account."
+}</code></pre>
+  <table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td><code>201</code></td><td>Appointment created</td></tr><tr><td><code>200</code></td><td>Appointment list returned or appointment deleted with a confirmation message</td></tr><tr><td><code>400</code></td><td>Invalid fields, past appointment time, or selected ID has the wrong role</td></tr><tr><td><code>401</code></td><td>Missing or invalid authentication token</td></tr><tr><td><code>403</code></td><td>Role is not permitted, or caller does not own the appointment</td></tr><tr><td><code>404</code></td><td>Appointment or selected patient/doctor does not exist</td></tr>
+  </tbody></table>
+
+  <h2>Frontend integration flows</h2>
+  <h3>Patient</h3><ol><li>Sign in and retain the JWT and <code>userId</code> for the session.</li><li>Load appointments with <code>GET /api/appointments/mine</code>.</li><li>Book with <code>POST /api/appointments</code>; omit <code>patientId</code> or send the signed-in user's ID.</li><li>Delete with <code>DELETE /api/appointments/{id}</code> after confirming the action.</li><li>Show the confirmation message and refresh the list or remove the deleted row after <code>200</code>.</li></ol>
+  <h3>Doctor</h3><ol><li>Sign in and load assigned appointments with <code>GET /api/appointments/mine</code>.</li><li>Delete an appointment assigned to them with <code>DELETE /api/appointments/{id}</code>.</li></ol>
+  <h3>Admin</h3><ol><li>Load all appointments with <code>GET /api/admin/appointments</code> when needed.</li><li>When an admin selects a patient, request <code>GET /api/admin/appointments/patient/{patientId}</code>.</li><li>When an admin selects a doctor, request <code>GET /api/admin/appointments/doctor/{doctorId}</code>.</li></ol>
+
+  <h2>cURL examples</h2>
+  <pre><code>curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/appointments/mine</code></pre>
+  <pre><code>curl -X POST http://localhost:8080/api/appointments \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"doctorId":7,"appointmentAt":"2026-10-12T10:30:00","reason":"Follow-up visit"}'</code></pre>
+  <pre><code>curl -X DELETE http://localhost:8080/api/appointments/101 \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+  <pre><code>curl -H "Authorization: Bearer $ADMIN_TOKEN" \
+  http://localhost:8080/api/admin/appointments/patient/42</code></pre>
+  <pre><code>curl -H "Authorization: Bearer $ADMIN_TOKEN" \
+  http://localhost:8080/api/admin/appointments/doctor/7</code></pre>
+</main>
+</body>
+</html>

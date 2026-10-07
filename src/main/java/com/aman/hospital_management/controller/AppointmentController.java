@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -27,6 +28,12 @@ public class AppointmentController {
     @GetMapping("/mine")
     public List<AppointmentResponse> mine(Authentication authentication) {
         return appointmentService.getMine(authentication.getName(), currentRole(authentication));
+    }
+
+    @DeleteMapping("/{appointmentId}")
+    public Map<String, String> delete(Authentication authentication, @PathVariable Long appointmentId) {
+        appointmentService.delete(authentication.getName(), currentRole(authentication), appointmentId);
+        return Map.of("message", "Appointment deleted successfully.");
     }
 
     private Role currentRole(Authentication authentication) {

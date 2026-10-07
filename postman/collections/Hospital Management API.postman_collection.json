@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hospital Management API",
-    "description": "Organized by feature. Start with Authentication > Initial Admin Setup once on a fresh database. Then log in as admin and use Admin > User Management. Run the Patient Profile requests after creating and logging in as a patient.",
+    "description": "Organized by feature. Start with Authentication > Initial Admin Setup once on a fresh database. Then create users and log in with the relevant role. Appointment requests include patient and doctor self views, admin scoped views, booking, and owner-only deletion.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": { "type": "noauth" },
@@ -63,6 +63,7 @@
             "    pm.expect(body.role).to.eql('PATIENT');",
             "    pm.environment.set('userToken', body.token);",
             "    pm.environment.set('userId', body.userId);",
+            "    pm.environment.set('patientId', body.userId);",
             "});"
           ] } }],
           "request": {
@@ -140,6 +141,7 @@
                   "    pm.expect(body.role).to.eql(pm.environment.get('newUserRole') || 'PATIENT');",
                   "    pm.expect(body.enabled).to.eql(true);",
                   "    pm.environment.set('userId', body.id);",
+                  "    if (body.role === 'PATIENT') pm.environment.set('patientId', body.id);",
                   "});"
                 ] } }
               ],
@@ -210,7 +212,7 @@
     },
     {
       "name": "Appointments",
-      "description": "Patients can book for themselves. Admins and nurses can book for a patient by ID. Admins can view all appointments; patients, nurses, and doctors can view only their own or assigned appointments.",
+      "description": "Patients can book for themselves. Admins and nurses can book for a patient by ID. Patients, doctors, and nurses can view their own or assigned appointments. Admins can view all appointments and filter by patient or doctor. Only the appointment's patient or doctor can delete it.",
       "item": [
         {
           "name": "Patient",
@@ -244,6 +246,14 @@
             {
               "name": "Get My Appointments",
               "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" }
+            },
+            {
+              "name": "Delete My Appointment",
+              "description": "Deletes an appointment only if the signed-in patient is its patient. Uses appointmentId saved by the booking request or set manually.",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });"
+              ] } }],
+              "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/appointments/{{appointmentId}}" }
             }
           ]
         },
@@ -254,11 +264,20 @@
           "item": [
             {
               "name": "Book Appointment For Patient",
-              "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-                "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                "appointmentAt.setHours(11, 0, 0, 0);",
-                "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-              ] } }],
+              "event": [
+                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+                  "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                  "appointmentAt.setHours(11, 0, 0, 0);",
+                  "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+                ] } },
+                { "listen": "test", "script": { "type": "text/javascript", "exec": [
+                  "pm.test('Nurse appointment is created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const body = pm.response.json();",
+                  "    pm.environment.set('appointmentId', body.id);",
+                  "});"
+                ] } }
+              ],
               "request": {
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -266,7 +285,15 @@
                 "url": "{{baseUrl}}/api/appointments"
               }
             },
-            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } }
+            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } },
+            {
+              "name": "Delete Assigned Appointment (Expected 403)",
+              "description": "Nurses cannot delete appointments. Use a real appointmentId to verify the role restriction.",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Nurse cannot delete appointments', function () { pm.response.to.have.status(403); });"
+              ] } }],
+              "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/appointments/{{appointmentId}}" }
+            }
           ]
         },
         {
@@ -274,7 +301,15 @@
           "description": "Run Authentication > Doctor Login first.",
           "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
           "item": [
-            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } }
+            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } },
+            {
+              "name": "Delete Assigned Appointment",
+              "description": "Deletes an appointment only if it is assigned to the signed-in doctor. Uses appointmentId saved by booking or set manually.",
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+                "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });"
+              ] } }],
+              "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/appointments/{{appointmentId}}" }
+            }
           ]
         },
         {
@@ -284,11 +319,20 @@
           "item": [
             {
               "name": "Book Appointment For Patient",
-              "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-                "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                "appointmentAt.setHours(12, 0, 0, 0);",
-                "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-              ] } }],
+              "event": [
+                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+                  "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                  "appointmentAt.setHours(12, 0, 0, 0);",
+                  "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+                ] } },
+                { "listen": "test", "script": { "type": "text/javascript", "exec": [
+                  "pm.test('Admin appointment is created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const body = pm.response.json();",
+                  "    pm.environment.set('appointmentId', body.id);",
+                  "});"
+                ] } }
+              ],
               "request": {
                 "method": "POST",
                 "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -296,7 +340,9 @@
                 "url": "{{baseUrl}}/api/appointments"
               }
             },
-            { "name": "Get All Appointments", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments" } }
+            { "name": "Get All Appointments", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments" } },
+            { "name": "Get Appointments For Patient", "description": "Set patientId to the selected patient's user ID (Authentication > Patient Login or Admin > Create User populates it when creating a patient).", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments/patient/{{patientId}}" } },
+            { "name": "Get Appointments For Doctor", "description": "Uses doctorId populated by Authentication > Doctor Login.", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments/doctor/{{doctorId}}" } }
           ]
         }
       ]

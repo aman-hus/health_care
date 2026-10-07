@@ -70,6 +70,43 @@ public class AppointmentService {
                 .map(AppointmentResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> getForPatient(Long patientId) {
+        userById(patientId, Role.PATIENT);
+        return appointmentRepository.findByPatient_IdOrderByAppointmentAtAsc(patientId).stream()
+                .map(AppointmentResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> getForDoctor(Long doctorId) {
+        userById(doctorId, Role.DOCTOR);
+        return appointmentRepository.findByDoctor_IdOrderByAppointmentAtAsc(doctorId).stream()
+                .map(AppointmentResponse::from).toList();
+    }
+
+    @Transactional
+    public void delete(String email, Role callerRole, Long appointmentId) {
+        if (callerRole != Role.PATIENT && callerRole != Role.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the appointment's patient or doctor can delete it.");
+        }
+
+        AppUser caller = userByEmail(email);
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Appointment not found: " + appointmentId));
+
+        boolean isOwner = callerRole == Role.PATIENT
+                ? appointment.getPatient().getId().equals(caller.getId())
+                : appointment.getDoctor().getId().equals(caller.getId());
+        if (!isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "You can only delete appointments associated with your account.");
+        }
+
+        appointmentRepository.delete(appointment);
+    }
+
     private AppUser userByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
