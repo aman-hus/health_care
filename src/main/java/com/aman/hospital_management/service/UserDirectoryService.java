@@ -5,6 +5,8 @@ import com.aman.hospital_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -27,5 +29,22 @@ public class UserDirectoryService {
                         user.getUpdatedAt()
                 ))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UserDirectoryResponse getUserById(Long id) {
+        var user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found"));
+
+        return new UserDirectoryResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole(),
+                user.isEnabled(),
+                user.getCreatedAt(),
+                user.getUpdatedAt()
+        );
     }
 }

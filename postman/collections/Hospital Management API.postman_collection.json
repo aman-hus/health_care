@@ -30,6 +30,20 @@
           "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/users" }
         },
         {
+          "name": "Get User By ID",
+          "description": "Uses userId from the environment. Run a role login or create a user first to populate it.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('User lookup returns the requested user without credentials', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const user = pm.response.json();",
+            "    pm.expect(String(user.id)).to.eql(String(pm.environment.get('userId')));",
+            "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
+            "    pm.expect(user).not.to.have.property('passwordHash');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/users/{{userId}}" }
+        },
+        {
           "name": "Reject All Users Without Token",
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Unauthenticated user directory request returns 401', function () { pm.response.to.have.status(401); });"
