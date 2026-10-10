@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hospital Management API",
-    "description": "Organized by feature. Start with Authentication > Initial Admin Setup once on a fresh database. Then create users and log in with the relevant role. Appointment requests include patient and doctor self views, admin scoped views, booking, and owner-only deletion.",
+    "description": "Organized by feature. Start with Authentication > Initial Admin Setup once on a fresh database. Then create users and log in with the relevant role. The User Directory endpoint accepts a token from any user role. Appointment requests include patient and doctor self views, admin scoped views, booking, and owner-only deletion.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": { "type": "noauth" },
@@ -9,6 +9,35 @@
     { "key": "baseUrl", "value": "http://localhost:8080" }
   ],
   "item": [
+    {
+      "name": "User Directory",
+      "description": "Lists all users. Set userDirectoryToken to a valid bearer token from any role (ADMIN, DOCTOR, PATIENT, NURSE, or MEDICAL_STAFF). Password hashes are never returned.",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userDirectoryToken}}", "type": "string" }] },
+      "item": [
+        {
+          "name": "Get All Users",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('User directory returns all users', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const users = pm.response.json();",
+            "    pm.expect(users).to.be.an('array');",
+            "    users.forEach(function (user) {",
+            "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
+            "        pm.expect(user).not.to.have.property('passwordHash');",
+            "    });",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/users" }
+        },
+        {
+          "name": "Reject All Users Without Token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Unauthenticated user directory request returns 401', function () { pm.response.to.have.status(401); });"
+          ] } }],
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/api/users" }
+        }
+      ]
+    },
     {
       "name": "Authentication",
       "description": "Public authentication endpoints. Initial Admin Setup is for a fresh database and succeeds only once.",
@@ -42,6 +71,7 @@
             "    pm.expect(body.token).to.be.a('string').and.not.empty;",
             "    pm.expect(body.role).to.eql('ADMIN');",
             "    pm.environment.set('adminToken', body.token);",
+            "    pm.environment.set('userDirectoryToken', body.token);",
             "    pm.environment.set('adminId', body.userId);",
             "});"
           ] } }],
@@ -62,6 +92,7 @@
             "    const body = pm.response.json();",
             "    pm.expect(body.role).to.eql('PATIENT');",
             "    pm.environment.set('userToken', body.token);",
+            "    pm.environment.set('userDirectoryToken', body.token);",
             "    pm.environment.set('userId', body.userId);",
             "    pm.environment.set('patientId', body.userId);",
             "});"
@@ -83,6 +114,7 @@
             "    const body = pm.response.json();",
             "    pm.expect(body.role).to.eql('NURSE');",
             "    pm.environment.set('nurseToken', body.token);",
+            "    pm.environment.set('userDirectoryToken', body.token);",
             "    pm.environment.set('nurseId', body.userId);",
             "});"
           ] } }],
@@ -103,6 +135,7 @@
             "    const body = pm.response.json();",
             "    pm.expect(body.role).to.eql('DOCTOR');",
             "    pm.environment.set('doctorToken', body.token);",
+            "    pm.environment.set('userDirectoryToken', body.token);",
             "    pm.environment.set('doctorId', body.userId);",
             "});"
           ] } }],
@@ -111,6 +144,27 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"{{doctorPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Medical Staff Login",
+          "description": "Logs in as medical staff and saves medicalStaffToken and the generic userDirectoryToken.",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Medical staff login returns token and MEDICAL_STAFF role', function () {",
+            "    pm.response.to.have.status(200);",
+            "    const body = pm.response.json();",
+            "    pm.expect(body.role).to.eql('MEDICAL_STAFF');",
+            "    pm.environment.set('medicalStaffToken', body.token);",
+            "    pm.environment.set('medicalStaffId', body.userId);",
+            "    pm.environment.set('userDirectoryToken', body.token);",
+            "});"
+          ] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{medicalStaffEmail}}\",\n  \"password\": \"{{medicalStaffPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
             "url": "{{baseUrl}}/api/auth/login"
           }
         }

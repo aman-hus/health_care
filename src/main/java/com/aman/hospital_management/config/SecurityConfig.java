@@ -127,6 +127,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/appointments/**").hasAnyRole("ADMIN", "NURSE", "DOCTOR", "PATIENT")
                         .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
                         .requestMatchers("/api/profile/**").hasRole("PATIENT")
+                        .requestMatchers("/api/users/**").authenticated()
                         // New API routes must receive an explicit role policy before they are accessible.
                         .anyRequest().denyAll()
                 );
