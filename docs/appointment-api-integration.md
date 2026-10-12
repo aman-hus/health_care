@@ -39,14 +39,14 @@ Roles are `ADMIN`, `DOCTOR`, `PATIENT`, `NURSE`, and `MEDICAL_STAFF`. Appointmen
 
 | Method | Path | Allowed roles | Purpose |
 |---|---|---|---|
-| `POST` | `/api/appointments` | Admin, nurse, patient | Book an appointment |
+| `POST` | `/api/appointments` | Admin, patient | Book an appointment |
 | `GET` | `/api/appointments/mine` | Patient, doctor, nurse | List appointments associated with the signed-in user |
 | `DELETE` | `/api/appointments/{appointmentId}` | Patient, doctor | Delete an appointment associated with the signed-in user |
 | `GET` | `/api/admin/appointments` | Admin | List all appointments |
 | `GET` | `/api/admin/appointments/patient/{patientId}` | Admin | List appointments for a selected patient |
 | `GET` | `/api/admin/appointments/doctor/{doctorId}` | Admin | List appointments for a selected doctor |
 
-Appointment lists are ordered by `appointmentAt`, earliest first. Empty results are returned as `200 OK` with `[]`.
+Appointment lists are ordered by `appointmentAt`, earliest first. Nurses receive all appointments scheduled today, regardless of assigned nurse. Empty results are returned as `200 OK` with `[]`.
 
 ## Book an appointment
 
@@ -56,7 +56,7 @@ Request fields:
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
-| `patientId` | number | Depends on role | Patient may omit it or provide their own ID. Admin and nurse must provide a patient ID. |
+| `patientId` | number | Depends on role | Patient may omit it or provide their own ID. Admin must provide a patient ID. |
 | `doctorId` | number | Yes | Must identify a user with role `DOCTOR`. |
 | `nurseId` | number or `null` | No | If supplied, must identify a user with role `NURSE`. |
 | `appointmentAt` | local date-time string | Yes | Must be in the future. Format: `YYYY-MM-DDTHH:mm:ss`. |
@@ -72,7 +72,7 @@ Example for a patient (the patient ID can be omitted because it is inferred from
 }
 ```
 
-Example for an admin or nurse booking for a patient:
+Example for an admin booking for a patient:
 
 ```json
 {
@@ -94,7 +94,7 @@ No query parameters or request body. The server uses the authenticated account:
 
 - Patient receives appointments where they are the patient.
 - Doctor receives appointments assigned to them.
-- Nurse receives appointments assigned to them.
+- Nurse receives all appointments scheduled today, regardless of assigned nurse.
 - Admin and medical staff are not supported on this endpoint and receive `403 Forbidden`.
 
 Success returns `200 OK` with an array of appointment objects. For a patient or doctor, this is the endpoint to load their appointment list.

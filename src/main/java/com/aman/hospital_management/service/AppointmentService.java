@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,9 +26,12 @@ public class AppointmentService {
 
     @Transactional
     public AppointmentResponse book(String email, Role callerRole, AppointmentRequest request) {
+        if (callerRole == Role.NURSE) {
+            throw new AccessDeniedException("Nurses cannot book appointments.");
+        }
         AppUser caller = userByEmail(email);
-        if (callerRole != Role.ADMIN && callerRole != Role.NURSE && callerRole != Role.PATIENT) {
-            throw new AccessDeniedException("Only admins, nurses, and patients can book appointments.");
+        if (callerRole != Role.ADMIN && callerRole != Role.PATIENT) {
+            throw new AccessDeniedException("Only admins and patients can book appointments.");
         }
         if (request.appointmentAt().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment time must be in the future.");
@@ -40,7 +44,7 @@ public class AppointmentService {
             patient = caller;
         } else {
             if (request.patientId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "patientId is required when an admin or nurse books.");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "patientId is required when an admin books.");
             }
             patient = userById(request.patientId(), Role.PATIENT);
         }
@@ -57,7 +61,11 @@ public class AppointmentService {
         AppUser user = userByEmail(email);
         List<Appointment> appointments = switch (role) {
             case DOCTOR -> appointmentRepository.findByDoctor_IdOrderByAppointmentAtAsc(user.getId());
-            case NURSE -> appointmentRepository.findByNurse_IdOrderByAppointmentAtAsc(user.getId());
+            case NURSE -> {
+                LocalDate today = LocalDate.now();
+                yield appointmentRepository.findByAppointmentAtGreaterThanEqualAndAppointmentAtLessThanOrderByAppointmentAtAsc(
+                        today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+            }
             case PATIENT -> appointmentRepository.findByPatient_IdOrderByAppointmentAtAsc(user.getId());
             default -> throw new AccessDeniedException("This role cannot use the personal appointments view.");
         };
