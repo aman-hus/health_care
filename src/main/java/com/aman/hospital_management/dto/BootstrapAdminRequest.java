@@ -22,4 +22,16 @@ public class BootstrapAdminRequest {
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must contain at least 8 characters")
     private String password;
+
+    @NotBlank(message = "Hospital name is required")
+    private String hospitalName;
+
+    @NotBlank(message = "Hospital code is required")
+    @Size(max = 80)
+    private String hospitalCode;
+
+    public String getHospitalName() { return hospitalName; }
+    public void setHospitalName(String hospitalName) { this.hospitalName = hospitalName; }
+    public String getHospitalCode() { return hospitalCode; }
+    public void setHospitalCode(String hospitalCode) { this.hospitalCode = hospitalCode; }
 }

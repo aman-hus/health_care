@@ -13,6 +13,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.security.HospitalContext;
 
 import java.io.IOException;
 
@@ -21,13 +23,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final HospitalMembershipRepository membershipRepository;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            UserDetailsService userDetailsService
+            UserDetailsService userDetailsService,
+            HospitalMembershipRepository membershipRepository
     ) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.membershipRepository = membershipRepository;
     }
 
     @Override
@@ -53,21 +58,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // Parsing verifies the signature and rejects expired tokens.
             Claims claims = jwtService.extractClaims(token);
             String email = claims.getSubject();
+            Long hospitalId = claims.get("hospitalId", Long.class);
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (email != null && hospitalId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-                if (userDetails.isEnabled() && email.equals(userDetails.getUsername())) {
+                var membership = membershipRepository.findByHospital_IdAndUser_EmailAndEnabledTrue(hospitalId, email)
+                        .orElseThrow(() -> new UsernameNotFoundException("No active membership for selected hospital."));
+                if (userDetails.isEnabled() && email.equals(userDetails.getUsername()) && membership.getHospital().isEnabled()) {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
                                     null,
-                                    userDetails.getAuthorities()
+                                    java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                            "ROLE_" + membership.getRole().name()))
                             );
                     authentication.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request)
                     );
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    HospitalContext.set(hospitalId);
                 }
             }
         } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ex) {
@@ -76,6 +85,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.clearContext();
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            HospitalContext.clear();
+        }
     }
 }

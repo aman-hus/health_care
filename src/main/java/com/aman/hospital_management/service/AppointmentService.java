@@ -4,9 +4,14 @@ import com.aman.hospital_management.dto.AppointmentRequest;
 import com.aman.hospital_management.dto.AppointmentResponse;
 import com.aman.hospital_management.model.AppUser;
 import com.aman.hospital_management.model.Appointment;
+import com.aman.hospital_management.model.AppointmentStatus;
 import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.repository.AppointmentRepository;
 import com.aman.hospital_management.repository.UserRepository;
+import com.aman.hospital_management.repository.HospitalRepository;
+import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.security.HospitalContext;
+import com.aman.hospital_management.model.Hospital;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,6 +28,8 @@ import java.util.List;
 public class AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
+    private final HospitalRepository hospitalRepository;
+    private final HospitalMembershipRepository membershipRepository;
 
     @Transactional
     public AppointmentResponse book(String email, Role callerRole, AppointmentRequest request) {
@@ -51,8 +58,14 @@ public class AppointmentService {
 
         AppUser doctor = userById(request.doctorId(), Role.DOCTOR);
         AppUser nurse = request.nurseId() == null ? null : userById(request.nurseId(), Role.NURSE);
+        Long hospitalId = HospitalContext.requireHospitalId();
+        ensureMember(hospitalId, patient);
+        ensureMember(hospitalId, doctor);
+        if (nurse != null) ensureMember(hospitalId, nurse);
+        Hospital hospital = hospitalRepository.findById(hospitalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital not found."));
         Appointment appointment = appointmentRepository.save(new Appointment(
-                patient, doctor, nurse, request.appointmentAt(), request.reason()));
+                hospital, patient, doctor, nurse, request.appointmentAt(), request.reason()));
         return AppointmentResponse.from(appointment);
     }
 
@@ -60,13 +73,13 @@ public class AppointmentService {
     public List<AppointmentResponse> getMine(String email, Role role) {
         AppUser user = userByEmail(email);
         List<Appointment> appointments = switch (role) {
-            case DOCTOR -> appointmentRepository.findByDoctor_IdOrderByAppointmentAtAsc(user.getId());
+            case DOCTOR -> appointmentRepository.findByHospital_IdAndDoctor_IdOrderByAppointmentAtAsc(HospitalContext.requireHospitalId(), user.getId());
             case NURSE -> {
                 LocalDate today = LocalDate.now();
-                yield appointmentRepository.findByAppointmentAtGreaterThanEqualAndAppointmentAtLessThanOrderByAppointmentAtAsc(
-                        today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+                yield appointmentRepository.findByHospital_IdAndNurse_IdAndAppointmentAtGreaterThanEqualAndAppointmentAtLessThanOrderByAppointmentAtAsc(
+                        HospitalContext.requireHospitalId(), user.getId(), today.atStartOfDay(), today.plusDays(1).atStartOfDay());
             }
-            case PATIENT -> appointmentRepository.findByPatient_IdOrderByAppointmentAtAsc(user.getId());
+            case PATIENT -> appointmentRepository.findByHospital_IdAndPatient_IdOrderByAppointmentAtAsc(HospitalContext.requireHospitalId(), user.getId());
             default -> throw new AccessDeniedException("This role cannot use the personal appointments view.");
         };
         return appointments.stream().map(AppointmentResponse::from).toList();
@@ -74,22 +87,88 @@ public class AppointmentService {
 
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getAll() {
-        return appointmentRepository.findAllByOrderByAppointmentAtAsc().stream()
+        return appointmentRepository.findByHospital_IdOrderByAppointmentAtAsc(HospitalContext.requireHospitalId()).stream()
                 .map(AppointmentResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getForPatient(Long patientId) {
         userById(patientId, Role.PATIENT);
-        return appointmentRepository.findByPatient_IdOrderByAppointmentAtAsc(patientId).stream()
+        return appointmentRepository.findByHospital_IdAndPatient_IdOrderByAppointmentAtAsc(HospitalContext.requireHospitalId(), patientId).stream()
                 .map(AppointmentResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getForDoctor(Long doctorId) {
         userById(doctorId, Role.DOCTOR);
-        return appointmentRepository.findByDoctor_IdOrderByAppointmentAtAsc(doctorId).stream()
+        return appointmentRepository.findByHospital_IdAndDoctor_IdOrderByAppointmentAtAsc(HospitalContext.requireHospitalId(), doctorId).stream()
                 .map(AppointmentResponse::from).toList();
+    }
+
+    @Transactional
+    public AppointmentResponse accept(String email, Role callerRole, Long appointmentId) {
+        Appointment appointment = appointmentForDoctor(email, callerRole, appointmentId);
+        requirePending(appointment);
+        appointment.accept();
+        return AppointmentResponse.from(appointment);
+    }
+
+    @Transactional
+    public AppointmentResponse reject(String email, Role callerRole, Long appointmentId) {
+        Appointment appointment = appointmentForDoctor(email, callerRole, appointmentId);
+        requirePending(appointment);
+        appointment.reject();
+        return AppointmentResponse.from(appointment);
+    }
+
+    @Transactional
+    public AppointmentResponse reschedule(String email, Role callerRole, Long appointmentId,
+                                          LocalDateTime appointmentAt) {
+        if (callerRole != Role.PATIENT && callerRole != Role.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the appointment's patient or doctor can reschedule it.");
+        }
+        if (appointmentAt == null || !appointmentAt.isAfter(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment time must be in the future.");
+        }
+        AppUser caller = userByEmail(email);
+        Appointment appointment = appointmentRepository.findByIdAndHospital_Id(appointmentId, HospitalContext.requireHospitalId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Appointment not found: " + appointmentId));
+        boolean isOwner = callerRole == Role.PATIENT
+                ? appointment.getPatient().getId().equals(caller.getId())
+                : appointment.getDoctor().getId().equals(caller.getId());
+        if (!isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "You can only reschedule appointments associated with your account.");
+        }
+        if (appointment.getStatus() == AppointmentStatus.REJECTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A rejected appointment cannot be rescheduled.");
+        }
+        appointment.reschedule(appointmentAt);
+        Appointment updatedAppointment = appointmentRepository.saveAndFlush(appointment);
+        return AppointmentResponse.from(updatedAppointment);
+    }
+
+    private Appointment appointmentForDoctor(String email, Role callerRole, Long appointmentId) {
+        if (callerRole != Role.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the assigned doctor can decide an appointment.");
+        }
+        AppUser caller = userByEmail(email);
+        Appointment appointment = appointmentRepository.findByIdAndHospital_Id(appointmentId, HospitalContext.requireHospitalId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Appointment not found: " + appointmentId));
+        if (!appointment.getDoctor().getId().equals(caller.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only decide appointments assigned to you.");
+        }
+        return appointment;
+    }
+
+    private void requirePending(Appointment appointment) {
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only pending appointments can be accepted or rejected.");
+        }
     }
 
     @Transactional
@@ -100,7 +179,7 @@ public class AppointmentService {
         }
 
         AppUser caller = userByEmail(email);
-        Appointment appointment = appointmentRepository.findById(appointmentId)
+        Appointment appointment = appointmentRepository.findByIdAndHospital_Id(appointmentId, HospitalContext.requireHospitalId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Appointment not found: " + appointmentId));
 
@@ -123,9 +202,18 @@ public class AppointmentService {
     private AppUser userById(Long id, Role requiredRole) {
         AppUser user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id));
-        if (user.getRole() != requiredRole) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User " + id + " must have role " + requiredRole + ".");
+        Long hospitalId = HospitalContext.requireHospitalId();
+        var membership = membershipRepository.findByHospital_IdAndUser_IdAndEnabledTrue(hospitalId, user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in this hospital."));
+        if (membership.getRole() != requiredRole) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User " + id + " must have role " + requiredRole + " in this hospital.");
         }
         return user;
+    }
+
+    private void ensureMember(Long hospitalId, AppUser user) {
+        if (!membershipRepository.existsByHospital_IdAndUser_IdAndEnabledTrue(hospitalId, user.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in this hospital.");
+        }
     }
 }

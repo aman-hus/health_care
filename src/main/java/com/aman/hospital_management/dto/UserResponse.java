@@ -9,6 +9,7 @@ public class UserResponse {
     private String email;
     private Role role;
     private boolean enabled;
+    private Long hospitalId;
 
 
     public UserResponse() {
@@ -20,13 +21,15 @@ public class UserResponse {
             String name,
             String email,
             Role role,
-            boolean enabled
+            boolean enabled,
+            Long hospitalId
     ) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.role = role;
         this.enabled = enabled;
+        this.hospitalId = hospitalId;
     }
 
 
@@ -73,4 +76,8 @@ public class UserResponse {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
+
+    public Long getHospitalId() { return hospitalId; }
+
+    public void setHospitalId(Long hospitalId) { this.hospitalId = hospitalId; }
 }

@@ -11,6 +11,7 @@ public class LoginRequest {
 
     @NotBlank(message = "Password is required")
     private String password;
+    private Long hospitalId;
 
 
     public LoginRequest() {
@@ -33,4 +34,7 @@ public class LoginRequest {
     public void setPassword(String password) {
         this.password = password;
     }
+
+    public Long getHospitalId() { return hospitalId; }
+    public void setHospitalId(Long hospitalId) { this.hospitalId = hospitalId; }
 }

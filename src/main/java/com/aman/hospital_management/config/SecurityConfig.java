@@ -3,6 +3,7 @@ package com.aman.hospital_management.config;
 import com.aman.hospital_management.security.CustomUserDetailsService;
 import com.aman.hospital_management.security.JwtAuthenticationFilter;
 import com.aman.hospital_management.security.JwtService;
+import com.aman.hospital_management.repository.HospitalMembershipRepository;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
@@ -36,13 +37,16 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtService jwtService;
+    private final HospitalMembershipRepository membershipRepository;
 
     public SecurityConfig(
             CustomUserDetailsService userDetailsService,
-            JwtService jwtService
+            JwtService jwtService,
+            HospitalMembershipRepository membershipRepository
     ) {
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
+        this.membershipRepository = membershipRepository;
     }
 
 
@@ -102,7 +106,7 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/bootstrap-admin").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/bootstrap-admin", "/api/auth/hospitals").permitAll()
                         .anyRequest().denyAll());
 
         return http.build();
@@ -136,12 +140,12 @@ public class SecurityConfig {
                                 "Your account does not have permission to access this resource."
                         )))
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtService, userDetailsService),
+                        new JwtAuthenticationFilter(jwtService, userDetailsService, membershipRepository),
                         UsernamePasswordAuthenticationFilter.class
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "PLATFORM_ADMIN")
                         .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
                         .requestMatchers("/api/nurse/**").hasRole("NURSE")
                         .requestMatchers("/api/medical-staff/**").hasRole("MEDICAL_STAFF")

@@ -2,6 +2,8 @@
 
 This guide documents the appointment endpoints for the frontend. All paths below are relative to the backend base URL (for example, `http://localhost:8080`). Send and receive JSON except for a successful delete, which has no response body.
 
+For an existing database, run [`add-appointment-status.sql`](../src/main/resources/db/add-appointment-status.sql) once before deploying this version; new appointments default to `PENDING`.
+
 ## Authentication
 
 All appointment endpoints require a JWT access token. Sign in through `POST /api/auth/login` with:
@@ -41,6 +43,9 @@ Roles are `ADMIN`, `DOCTOR`, `PATIENT`, `NURSE`, and `MEDICAL_STAFF`. Appointmen
 |---|---|---|---|
 | `POST` | `/api/appointments` | Admin, patient | Book an appointment |
 | `GET` | `/api/appointments/mine` | Patient, doctor, nurse | List appointments associated with the signed-in user |
+| `POST` | `/api/appointments/{appointmentId}/accept` | Assigned doctor | Accept a pending appointment |
+| `POST` | `/api/appointments/{appointmentId}/reject` | Assigned doctor | Reject a pending appointment |
+| `PATCH` | `/api/appointments/{appointmentId}/reschedule` | Appointment patient or doctor | Change an appointment time |
 | `DELETE` | `/api/appointments/{appointmentId}` | Patient, doctor | Delete an appointment associated with the signed-in user |
 | `GET` | `/api/admin/appointments` | Admin | List all appointments |
 | `GET` | `/api/admin/appointments/patient/{patientId}` | Admin | List appointments for a selected patient |
@@ -84,7 +89,28 @@ Example for an admin booking for a patient:
 }
 ```
 
-Success returns `201 Created` and an appointment object (see [Appointment response](#appointment-response)). A patient cannot book for another patient. Doctors cannot book through this endpoint.
+Success returns `201 Created` with status `PENDING`; the appointment appears in the assigned doctor's list for a decision. A patient cannot book for another patient. Doctors cannot book through this endpoint.
+
+## Accept or reject a booking
+
+Only the doctor assigned to a pending appointment can decide it. Send an empty `POST` body to one of:
+
+- `POST /api/appointments/{appointmentId}/accept` changes `PENDING` to `SCHEDULED`.
+- `POST /api/appointments/{appointmentId}/reject` changes `PENDING` to `REJECTED`.
+
+Both return `200 OK` with the updated appointment. A non-assigned doctor, patient, or other role receives `403 Forbidden`. A decision on an appointment that is no longer pending receives `409 Conflict`.
+
+## Reschedule an appointment
+
+Either the appointment's patient or assigned doctor can change its time with `PATCH /api/appointments/{appointmentId}/reschedule`:
+
+```json
+{
+  "appointmentAt": "2026-11-12T10:30:00"
+}
+```
+
+The new time must be in the future. Rescheduling is immediate and preserves the current status (`PENDING` or `SCHEDULED`); rejected appointments cannot be rescheduled. The endpoint returns `200 OK` and the updated appointment.
 
 ## List appointments for the signed-in user
 
@@ -151,6 +177,7 @@ Each appointment in a successful response has this shape:
   "nurseId": 12,
   "nurseName": "Taylor Kim",
   "appointmentAt": "2026-10-12T10:30:00",
+  "status": "PENDING",
   "reason": "Follow-up visit",
   "createdAt": "2026-10-06T14:22:31.412"
 }

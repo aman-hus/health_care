@@ -2,6 +2,7 @@ package com.aman.hospital_management.controller;
 
 import com.aman.hospital_management.dto.AppointmentRequest;
 import com.aman.hospital_management.dto.AppointmentResponse;
+import com.aman.hospital_management.dto.RescheduleAppointmentRequest;
 import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.service.AppointmentService;
 import jakarta.validation.Valid;
@@ -34,6 +35,23 @@ public class AppointmentController {
     public Map<String, String> delete(Authentication authentication, @PathVariable Long appointmentId) {
         appointmentService.delete(authentication.getName(), currentRole(authentication), appointmentId);
         return Map.of("message", "Appointment deleted successfully.");
+    }
+
+    @PostMapping("/{appointmentId}/accept")
+    public AppointmentResponse accept(Authentication authentication, @PathVariable Long appointmentId) {
+        return appointmentService.accept(authentication.getName(), currentRole(authentication), appointmentId);
+    }
+
+    @PostMapping("/{appointmentId}/reject")
+    public AppointmentResponse reject(Authentication authentication, @PathVariable Long appointmentId) {
+        return appointmentService.reject(authentication.getName(), currentRole(authentication), appointmentId);
+    }
+
+    @PatchMapping("/{appointmentId}/reschedule")
+    public AppointmentResponse reschedule(Authentication authentication, @PathVariable Long appointmentId,
+                                          @Valid @RequestBody RescheduleAppointmentRequest request) {
+        return appointmentService.reschedule(authentication.getName(), currentRole(authentication),
+                appointmentId, request.appointmentAt());
     }
 
     private Role currentRole(Authentication authentication) {

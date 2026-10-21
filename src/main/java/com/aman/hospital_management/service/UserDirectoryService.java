@@ -1,7 +1,8 @@
 package com.aman.hospital_management.service;
 
 import com.aman.hospital_management.dto.UserDirectoryResponse;
-import com.aman.hospital_management.repository.UserRepository;
+import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.security.HospitalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,34 +15,31 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserDirectoryService {
 
-    private final UserRepository userRepository;
+    private final HospitalMembershipRepository membershipRepository;
 
     @Transactional(readOnly = true)
     public List<UserDirectoryResponse> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(user -> new UserDirectoryResponse(
-                        user.getId(),
-                        user.getName(),
-                        user.getEmail(),
-                        user.getRole(),
-                        user.isEnabled(),
-                        user.getCreatedAt(),
-                        user.getUpdatedAt()
-                ))
+        return membershipRepository.findByHospital_IdAndEnabledTrueOrderByUser_NameAsc(HospitalContext.requireHospitalId()).stream()
+                .map(membership -> {
+                    var user = membership.getUser();
+                    return new UserDirectoryResponse(user.getId(), user.getName(), user.getEmail(), membership.getRole(),
+                            user.isEnabled(), user.getCreatedAt(), user.getUpdatedAt());
+                })
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public UserDirectoryResponse getUserById(Long id) {
-        var user = userRepository.findById(id)
+        var membership = membershipRepository.findByHospital_IdAndUser_IdAndEnabledTrue(HospitalContext.requireHospitalId(), id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "User not found"));
+        var user = membership.getUser();
 
         return new UserDirectoryResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole(),
+                membership.getRole(),
                 user.isEnabled(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()

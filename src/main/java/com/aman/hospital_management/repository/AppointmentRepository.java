@@ -7,10 +7,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
-    List<Appointment> findAllByOrderByAppointmentAtAsc();
-    List<Appointment> findByDoctor_IdOrderByAppointmentAtAsc(Long doctorId);
-    List<Appointment> findByNurse_IdOrderByAppointmentAtAsc(Long nurseId);
-    List<Appointment> findByAppointmentAtGreaterThanEqualAndAppointmentAtLessThanOrderByAppointmentAtAsc(
-            LocalDateTime start, LocalDateTime end);
-    List<Appointment> findByPatient_IdOrderByAppointmentAtAsc(Long patientId);
+    List<Appointment> findByHospital_IdOrderByAppointmentAtAsc(Long hospitalId);
+    List<Appointment> findByHospital_IdAndDoctor_IdOrderByAppointmentAtAsc(Long hospitalId, Long doctorId);
+    List<Appointment> findByHospital_IdAndNurse_IdAndAppointmentAtGreaterThanEqualAndAppointmentAtLessThanOrderByAppointmentAtAsc(
+            Long hospitalId, Long nurseId, LocalDateTime start, LocalDateTime end);
+    List<Appointment> findByHospital_IdAndAppointmentAtGreaterThanEqualAndAppointmentAtLessThanOrderByAppointmentAtAsc(
+            Long hospitalId, LocalDateTime start, LocalDateTime end);
+    List<Appointment> findByHospital_IdAndPatient_IdOrderByAppointmentAtAsc(Long hospitalId, Long patientId);
+    java.util.Optional<Appointment> findByIdAndHospital_Id(Long id, Long hospitalId);
 }

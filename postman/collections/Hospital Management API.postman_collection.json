@@ -1,185 +1,458 @@
 {
   "info": {
     "name": "Hospital Management API",
-    "description": "Organized by feature. Start with Authentication > Initial Admin Setup once on a fresh database. Then create users and log in with the relevant role. The User Directory endpoint accepts a token from any user role. Appointment requests include patient and doctor self views, admin scoped views, booking, and owner-only deletion.",
+    "description": "Multi-hospital API. Fresh database: run Authentication > Initial Platform Admin Setup, list hospitals, then use Platform Admin Login to create additional hospitals together with their first hospital admin. Hospital admins create users under their token hospital; the request body does not include hospitalId, and the response includes it. Existing installations should run the documented SQL migration before using this collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "auth": { "type": "noauth" },
+  "auth": {
+    "type": "noauth"
+  },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
   ],
   "item": [
     {
       "name": "User Directory",
-      "description": "Lists all users. Set userDirectoryToken to a valid bearer token from any role (ADMIN, DOCTOR, PATIENT, NURSE, or MEDICAL_STAFF). Password hashes are never returned.",
-      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userDirectoryToken}}", "type": "string" }] },
+      "description": "Lists users in the selected hospital only. Set userDirectoryToken to a valid bearer token for that hospital. Password hashes are never returned.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{userDirectoryToken}}",
+            "type": "string"
+          }
+        ]
+      },
       "item": [
         {
           "name": "Get All Users",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('User directory returns all users', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const users = pm.response.json();",
-            "    pm.expect(users).to.be.an('array');",
-            "    users.forEach(function (user) {",
-            "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
-            "        pm.expect(user).not.to.have.property('passwordHash');",
-            "    });",
-            "});"
-          ] } }],
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/users" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User directory returns users for the selected hospital', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const users = pm.response.json();",
+                  "    pm.expect(users).to.be.an('array');",
+                  "    users.forEach(function (user) {",
+                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
+                  "        pm.expect(user).not.to.have.property('passwordHash');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users"
+          }
         },
         {
           "name": "Get User By ID",
           "description": "Uses userId from the environment. Run a role login or create a user first to populate it.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('User lookup returns the requested user without credentials', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const user = pm.response.json();",
-            "    pm.expect(String(user.id)).to.eql(String(pm.environment.get('userId')));",
-            "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
-            "    pm.expect(user).not.to.have.property('passwordHash');",
-            "});"
-          ] } }],
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/users/{{userId}}" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User lookup returns the requested user without credentials', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const user = pm.response.json();",
+                  "    pm.expect(String(user.id)).to.eql(String(pm.environment.get('userId')));",
+                  "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
+                  "    pm.expect(user).not.to.have.property('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}"
+          }
         },
         {
           "name": "Reject All Users Without Token",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Unauthenticated user directory request returns 401', function () { pm.response.to.have.status(401); });"
-          ] } }],
-          "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/api/users" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthenticated user directory request returns 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users"
+          }
         }
       ]
     },
     {
       "name": "Authentication",
-      "description": "Public authentication endpoints. Initial Admin Setup is for a fresh database and succeeds only once.",
+      "description": "On a fresh database, create the platform admin and first hospital. Platform admins can create additional hospitals with their first hospital admin. Hospital-scoped user creation uses the logged-in admin token hospital.",
       "item": [
         {
-          "name": "Initial Admin Setup (run once)",
-          "description": "Creates the first ADMIN while there are no users. Set adminName, adminEmail, and adminPassword in the environment first. The role is assigned by the server.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('First admin is created', function () {",
-            "    pm.response.to.have.status(201);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.role).to.eql('ADMIN');",
-            "    pm.environment.set('adminId', body.id);",
-            "});"
-          ] } }],
+          "name": "List Hospitals (select before login)",
+          "description": "Returns active hospital IDs, names, and codes. The test selects hospitalId if already set; otherwise it selects the first hospital. Change hospitalId in the environment to work with another hospital.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Active hospital list is returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const hospitals = pm.response.json();",
+                  "    pm.expect(hospitals).to.be.an('array');",
+                  "    if (hospitals.length) {",
+                  "        let selected = hospitals.find(h => String(h.id) === String(pm.environment.get('hospitalId')));",
+                  "        if (!selected) selected = hospitals[0];",
+                  "        pm.environment.set('hospitalId', selected.id);",
+                  "        pm.environment.set('hospitalCode', selected.code);",
+                  "        pm.environment.set('hospitalName', selected.name);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/hospitals"
+          }
+        },
+        {
+          "name": "Initial Platform Admin Setup (run once)",
+          "description": "Fresh database only. Creates the first PLATFORM_ADMIN and first hospital. Set adminName, adminEmail, adminPassword, hospitalName, and hospitalCode first. Then run List Hospitals before login. Existing installations should use the SQL migration instead.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('First admin is created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql('PLATFORM_ADMIN');",
+                  "    pm.environment.set('adminId', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"hospitalName\": \"{{hospitalName}}\",\n  \"hospitalCode\": \"{{hospitalCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/auth/bootstrap-admin"
           }
         },
         {
           "name": "Admin Login",
           "description": "Logs in and saves the JWT as adminToken for the Admin folder requests.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Admin login returns token and ADMIN role', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.token).to.be.a('string').and.not.empty;",
-            "    pm.expect(body.role).to.eql('ADMIN');",
-            "    pm.environment.set('adminToken', body.token);",
-            "    pm.environment.set('userDirectoryToken', body.token);",
-            "    pm.environment.set('adminId', body.userId);",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Admin login returns a token for the selected hospital', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(['ADMIN', 'PLATFORM_ADMIN']).to.include(body.role);",
+                  "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('hospitalId')));",
+                  "    pm.environment.set('adminToken', body.token);",
+                  "    pm.environment.set('userDirectoryToken', body.token);",
+                  "    pm.environment.set('adminId', body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/auth/login"
           }
         },
         {
           "name": "Patient Login",
           "description": "Logs in as the patient created by Admin > User Management and saves userToken/userId.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Patient login returns token and PATIENT role', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.role).to.eql('PATIENT');",
-            "    pm.environment.set('userToken', body.token);",
-            "    pm.environment.set('userDirectoryToken', body.token);",
-            "    pm.environment.set('userId', body.userId);",
-            "    pm.environment.set('patientId', body.userId);",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Patient login returns token and PATIENT role', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql('PATIENT');",
+                  "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('hospitalId')));",
+                  "    pm.environment.set('userToken', body.token);",
+                  "    pm.environment.set('userDirectoryToken', body.token);",
+                  "    pm.environment.set('userId', body.userId);",
+                  "    pm.environment.set('patientId', body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/auth/login"
           }
         },
         {
           "name": "Nurse Login",
           "description": "Logs in as a nurse and saves nurseToken. Set nurseEmail and nursePassword in the environment first.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Nurse login returns token and NURSE role', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.role).to.eql('NURSE');",
-            "    pm.environment.set('nurseToken', body.token);",
-            "    pm.environment.set('userDirectoryToken', body.token);",
-            "    pm.environment.set('nurseId', body.userId);",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Nurse login returns token and NURSE role', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql('NURSE');",
+                  "    pm.environment.set('nurseToken', body.token);",
+                  "    pm.environment.set('userDirectoryToken', body.token);",
+                  "    pm.environment.set('nurseId', body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{nurseEmail}}\",\n  \"password\": \"{{nursePassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{nurseEmail}}\",\n  \"password\": \"{{nursePassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/auth/login"
           }
         },
         {
           "name": "Doctor Login",
           "description": "Logs in as a doctor and saves doctorToken. Set doctorEmail and doctorPassword in the environment first.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Doctor login returns token and DOCTOR role', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.role).to.eql('DOCTOR');",
-            "    pm.environment.set('doctorToken', body.token);",
-            "    pm.environment.set('userDirectoryToken', body.token);",
-            "    pm.environment.set('doctorId', body.userId);",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Doctor login returns token and DOCTOR role', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql('DOCTOR');",
+                  "    pm.environment.set('doctorToken', body.token);",
+                  "    pm.environment.set('userDirectoryToken', body.token);",
+                  "    pm.environment.set('doctorId', body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"{{doctorPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{doctorEmail}}\",\n  \"password\": \"{{doctorPassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/auth/login"
           }
         },
         {
           "name": "Medical Staff Login",
           "description": "Logs in as medical staff and saves medicalStaffToken and the generic userDirectoryToken.",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Medical staff login returns token and MEDICAL_STAFF role', function () {",
-            "    pm.response.to.have.status(200);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.role).to.eql('MEDICAL_STAFF');",
-            "    pm.environment.set('medicalStaffToken', body.token);",
-            "    pm.environment.set('medicalStaffId', body.userId);",
-            "    pm.environment.set('userDirectoryToken', body.token);",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Medical staff login returns token and MEDICAL_STAFF role', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql('MEDICAL_STAFF');",
+                  "    pm.environment.set('medicalStaffToken', body.token);",
+                  "    pm.environment.set('medicalStaffId', body.userId);",
+                  "    pm.environment.set('userDirectoryToken', body.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{medicalStaffEmail}}\",\n  \"password\": \"{{medicalStaffPassword}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{medicalStaffEmail}}\",\n  \"password\": \"{{medicalStaffPassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Hospital Admin Login",
+          "description": "Logs in as the hospital admin created by Create Hospital (Platform Admin). Uses newHospitalId and saves adminToken for that hospital.",
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "pm.test('Hospital admin login returns ADMIN role for the created hospital', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.role).to.eql('ADMIN');",
+                  "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('newHospitalId')));",
+                  "    pm.environment.set('adminToken', body.token);",
+                  "    pm.environment.set('userDirectoryToken', body.token);",
+                  "    pm.environment.set('adminId', body.userId);",
+                  "    pm.environment.set('hospitalId', body.hospitalId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ],
+          "request": {
+            "header": [
+              {
+                "value": "application/json",
+                "key": "Content-Type"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"{{hospitalAdminEmail}}\",\n  \"password\": \"{{hospitalAdminPassword}}\",\n  \"hospitalId\": {{newHospitalId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login",
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -187,38 +460,130 @@
     {
       "name": "Admin",
       "description": "Admin-only features. Set adminToken by running Authentication > Admin Login.",
-      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      },
       "item": [
         {
+          "name": "Hospital Management",
+          "description": "Platform admins can create hospitals. Organization-specific user and appointment requests remain scoped to the currently selected hospital token.",
+          "item": [
+            {
+              "name": "Create Hospital (Platform Admin)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Hospital and first hospital admin are created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const body = pm.response.json();",
+                      "    pm.expect(body.hospitalId).to.exist;",
+                      "    pm.expect(body.adminId).to.exist;",
+                      "    pm.expect(body.adminEmail).to.eql(pm.environment.get('hospitalAdminEmail'));",
+                      "    pm.environment.set('newHospitalId', body.hospitalId);",
+                      "    pm.environment.set('newHospitalCode', body.code);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{newHospitalName}}\",\n  \"code\": \"{{newHospitalCodeInput}}\",\n  \"adminName\": \"{{hospitalAdminName}}\",\n  \"adminEmail\": \"{{hospitalAdminEmail}}\",\n  \"adminPassword\": \"{{hospitalAdminPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/admin/hospitals"
+              },
+              "description": "Platform admin only. Creates a hospital and its first ADMIN account in one transaction. The response returns hospitalId and admin details."
+            },
+            {
+              "name": "List Hospitals (Admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/hospitals"
+              }
+            }
+          ]
+        },
+        {
           "name": "User Management",
-          "description": "Create users with the role they need. Change newUserRole as required (ADMIN, DOCTOR, PATIENT, NURSE, MEDICAL_STAFF).",
+          "description": "Hospital admins create accounts for their selected hospital. The hospital is taken from the bearer token; do not send hospitalId in this request. Set newUserRole to ADMIN, DOCTOR, PATIENT, NURSE, or MEDICAL_STAFF.",
           "item": [
             {
               "name": "Create User",
               "event": [
-                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-                  "if (!pm.environment.get('newUserEmail')) pm.environment.set('newUserEmail', 'postman.patient.' + Date.now() + '@example.com');",
-                  "if (!pm.environment.get('newUserPassword')) pm.environment.set('newUserPassword', 'PostmanPatientPass123!');",
-                  "if (!pm.environment.get('newUserName')) pm.environment.set('newUserName', 'Postman Test Patient');",
-                  "if (!pm.environment.get('newUserRole')) pm.environment.set('newUserRole', 'PATIENT');"
-                ] } },
-                { "listen": "test", "script": { "type": "text/javascript", "exec": [
-                  "pm.test('User created with requested role', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    const body = pm.response.json();",
-                  "    pm.expect(body.role).to.eql(pm.environment.get('newUserRole') || 'PATIENT');",
-                  "    pm.expect(body.enabled).to.eql(true);",
-                  "    pm.environment.set('userId', body.id);",
-                  "    if (body.role === 'PATIENT') pm.environment.set('patientId', body.id);",
-                  "});"
-                ] } }
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (!pm.environment.get('newUserEmail')) pm.environment.set('newUserEmail', 'postman.patient.' + Date.now() + '@example.com');",
+                      "if (!pm.environment.get('newUserPassword')) pm.environment.set('newUserPassword', 'PostmanPatientPass123!');",
+                      "if (!pm.environment.get('newUserName')) pm.environment.set('newUserName', 'Postman Test Patient');",
+                      "if (!pm.environment.get('newUserRole')) pm.environment.set('newUserRole', 'PATIENT');"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('User created with requested role and token hospital', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const body = pm.response.json();",
+                      "    pm.expect(body.role).to.eql(pm.environment.get('newUserRole') || 'PATIENT');",
+                      "    pm.expect(body.enabled).to.eql(true);",
+                      "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('hospitalId')));",
+                      "    pm.environment.set('userId', body.id);",
+                      "    if (body.role === 'PATIENT') pm.environment.set('patientId', body.id);",
+                      "});"
+                    ]
+                  }
+                }
               ],
               "request": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": { "mode": "raw", "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\"\n}", "options": { "raw": { "language": "json" } } },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": "{{baseUrl}}/api/admin/users"
-              }
+              },
+              "description": "Creates the user in the hospital selected by the bearer token. Do not send hospitalId; the response includes it."
             }
           ]
         },
@@ -228,35 +593,96 @@
           "item": [
             {
               "name": "Reject User Creation Without Token",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Unauthenticated user creation returns 401', function () { pm.response.to.have.status(401); });"
-              ] } }],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Unauthenticated user creation returns 401', function () { pm.response.to.have.status(401); });"
+                    ]
+                  }
+                }
+              ],
               "request": {
-                "auth": { "type": "noauth" },
+                "auth": {
+                  "type": "noauth"
+                },
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Unauthorized Attempt\",\n  \"email\": \"unauthorized@example.com\",\n  \"password\": \"NotARealPass123!\",\n  \"role\": \"PATIENT\"\n}", "options": { "raw": { "language": "json" } } },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Unauthorized Attempt\",\n  \"email\": \"unauthorized@example.com\",\n  \"password\": \"NotARealPass123!\",\n  \"role\": \"PATIENT\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": "{{baseUrl}}/api/admin/users"
               }
             },
             {
               "name": "Reject User Creation With Patient Token",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Non-admin user creation returns 403', function () { pm.response.to.have.status(403); });"
-              ] } }],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Non-admin user creation returns 403', function () { pm.response.to.have.status(403); });"
+                    ]
+                  }
+                }
+              ],
               "request": {
-                "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{userToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Should Not Be Created\",\n  \"email\": \"forbidden@example.com\",\n  \"password\": \"NotARealPass123!\",\n  \"role\": \"PATIENT\"\n}", "options": { "raw": { "language": "json" } } },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Should Not Be Created\",\n  \"email\": \"forbidden@example.com\",\n  \"password\": \"NotARealPass123!\",\n  \"role\": \"PATIENT\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": "{{baseUrl}}/api/admin/users"
               }
             },
             {
               "name": "Reject Patient Profile Read With Admin Token",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Admin role cannot access patient-only profile routes', function () { pm.response.to.have.status(403); });"
-              ] } }],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Admin role cannot access patient-only profile routes', function () { pm.response.to.have.status(403); });"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [],
@@ -265,9 +691,17 @@
             },
             {
               "name": "Deny Unconfigured API Route By Default",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Authenticated request to an unconfigured API route returns 403', function () { pm.response.to.have.status(403); });"
-              ] } }],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Authenticated request to an unconfigured API route returns 403', function () { pm.response.to.have.status(403); });"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [],
@@ -280,137 +714,432 @@
     },
     {
       "name": "Appointments",
-      "description": "Patients can book for themselves. Admins and nurses can book for a patient by ID. Patients, doctors, and nurses can view their own or assigned appointments. Admins can view all appointments and filter by patient or doctor. Only the appointment's patient or doctor can delete it.",
+      "description": "Patients book for themselves; admins book for patients. New bookings are PENDING until the assigned doctor accepts (SCHEDULED) or rejects (REJECTED). Patients and assigned doctors can reschedule pending or scheduled appointments. Nurses cannot book appointments.",
       "item": [
         {
           "name": "Patient",
           "description": "Run Authentication > Patient Login first.",
-          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{userToken}}",
+                "type": "string"
+              }
+            ]
+          },
           "item": [
             {
               "name": "Book Appointment For Myself",
               "event": [
-                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-                  "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                  "appointmentAt.setHours(10, 0, 0, 0);",
-                  "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-                ] } },
-                { "listen": "test", "script": { "type": "text/javascript", "exec": [
-                  "pm.test('Patient appointment is created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    const body = pm.response.json();",
-                  "    pm.expect(String(body.patientId)).to.eql(String(pm.environment.get('userId')));",
-                  "    pm.environment.set('appointmentId', body.id);",
-                  "});"
-                ] } }
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                      "appointmentAt.setHours(10, 0, 0, 0);",
+                      "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Patient appointment is created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const body = pm.response.json();",
+                      "    pm.expect(String(body.patientId)).to.eql(String(pm.environment.get('userId')));",
+                      "    pm.expect(body.status).to.eql('PENDING');",
+                      "    pm.environment.set('appointmentId', body.id);",
+                      "});"
+                    ]
+                  }
+                }
               ],
               "request": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": { "mode": "raw", "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Postman test appointment\"\n}", "options": { "raw": { "language": "json" } } },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Postman test appointment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": "{{baseUrl}}/api/appointments"
               }
             },
             {
               "name": "Get My Appointments",
-              "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" }
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/mine"
+              }
+            },
+            {
+              "name": "Reschedule My Appointment",
+              "description": "Updates the appointment time for the signed-in patient. Set the appointmentAt environment variable to the desired future date before sending.",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"appointmentAt\": \"{{appointmentAt}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}/reschedule"
+              }
             },
             {
               "name": "Delete My Appointment",
               "description": "Deletes an appointment only if the signed-in patient is its patient. Uses appointmentId saved by the booking request or set manually.",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });"
-              ] } }],
-              "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/appointments/{{appointmentId}}" }
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}"
+              }
             }
           ]
         },
         {
           "name": "Nurse",
-          "description": "Run Authentication > Nurse Login first. Set patientId and doctorId from Admin > User Management or prior login results.",
-          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{nurseToken}}", "type": "string" }] },
+          "description": "Run Authentication > Nurse Login first. Nurses cannot book appointments in this API; use this request to confirm the server denies the operation. Set patientId and doctorId in the environment.",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{nurseToken}}",
+                "type": "string"
+              }
+            ]
+          },
           "item": [
             {
-              "name": "Book Appointment For Patient",
+              "name": "Reject Nurse Appointment Booking",
               "event": [
-                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-                  "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                  "appointmentAt.setHours(11, 0, 0, 0);",
-                  "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-                ] } },
-                { "listen": "test", "script": { "type": "text/javascript", "exec": [
-                  "pm.test('Nurse appointment is created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    const body = pm.response.json();",
-                  "    pm.environment.set('appointmentId', body.id);",
-                  "});"
-                ] } }
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                      "appointmentAt.setHours(11, 0, 0, 0);",
+                      "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Nurse appointment booking is forbidden', function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
               ],
               "request": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": { "mode": "raw", "raw": "{\n  \"patientId\": {{userId}},\n  \"doctorId\": {{doctorId}},\n  \"nurseId\": {{nurseId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Nurse booked appointment\"\n}", "options": { "raw": { "language": "json" } } },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"patientId\": {{userId}},\n  \"doctorId\": {{doctorId}},\n  \"nurseId\": {{nurseId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Nurse booked appointment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": "{{baseUrl}}/api/appointments"
               }
             },
-            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } },
+            {
+              "name": "Get Appointments Assigned To Me",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/mine"
+              }
+            },
             {
               "name": "Delete Assigned Appointment (Expected 403)",
               "description": "Nurses cannot delete appointments. Use a real appointmentId to verify the role restriction.",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Nurse cannot delete appointments', function () { pm.response.to.have.status(403); });"
-              ] } }],
-              "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/appointments/{{appointmentId}}" }
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Nurse cannot delete appointments', function () { pm.response.to.have.status(403); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}"
+              }
             }
           ]
         },
         {
           "name": "Doctor",
           "description": "Run Authentication > Doctor Login first.",
-          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{doctorToken}}", "type": "string" }] },
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{doctorToken}}",
+                "type": "string"
+              }
+            ]
+          },
           "item": [
-            { "name": "Get Appointments Assigned To Me", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/appointments/mine" } },
+            {
+              "name": "Get Appointments Assigned To Me",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/mine"
+              }
+            },
+            {
+              "name": "Accept Pending Appointment",
+              "description": "Accepts a pending appointment assigned to the signed-in doctor. Uses appointmentId saved by the patient booking request or set manually.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Doctor accepts pending appointment', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    pm.expect(pm.response.json().status).to.eql('SCHEDULED');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}/accept"
+              }
+            },
+            {
+              "name": "Reject Pending Appointment",
+              "description": "Use this instead of Accept Pending Appointment for a pending appointment assigned to the signed-in doctor.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Doctor rejects pending appointment', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    pm.expect(pm.response.json().status).to.eql('REJECTED');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}/reject"
+              }
+            },
+            {
+              "name": "Reschedule Assigned Appointment",
+              "description": "Updates the time for a pending or scheduled appointment assigned to the signed-in doctor. Set the appointmentAt environment variable to the desired future date before sending.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Doctor appointment time is updated', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const expected = pm.environment.get('appointmentAt');",
+                      "    const actual = pm.response.json().appointmentAt;",
+                      "    pm.expect(actual).to.eql(expected);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"appointmentAt\": \"{{appointmentAt}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}/reschedule"
+              }
+            },
             {
               "name": "Delete Assigned Appointment",
               "description": "Deletes an appointment only if it is assigned to the signed-in doctor. Uses appointmentId saved by booking or set manually.",
-              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-                "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });"
-              ] } }],
-              "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/appointments/{{appointmentId}}" }
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/{{appointmentId}}"
+              }
             }
           ]
         },
         {
           "name": "Admin",
           "description": "Run Authentication > Admin Login first.",
-          "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{adminToken}}",
+                "type": "string"
+              }
+            ]
+          },
           "item": [
             {
               "name": "Book Appointment For Patient",
               "event": [
-                { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-                  "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                  "appointmentAt.setHours(12, 0, 0, 0);",
-                  "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-                ] } },
-                { "listen": "test", "script": { "type": "text/javascript", "exec": [
-                  "pm.test('Admin appointment is created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    const body = pm.response.json();",
-                  "    pm.environment.set('appointmentId', body.id);",
-                  "});"
-                ] } }
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
+                      "appointmentAt.setHours(12, 0, 0, 0);",
+                      "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Admin appointment is created', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const body = pm.response.json();",
+                      "    pm.environment.set('appointmentId', body.id);",
+                      "});"
+                    ]
+                  }
+                }
               ],
               "request": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
-                "body": { "mode": "raw", "raw": "{\n  \"patientId\": {{userId}},\n  \"doctorId\": {{doctorId}},\n  \"nurseId\": {{nurseId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Admin booked appointment\"\n}", "options": { "raw": { "language": "json" } } },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"patientId\": {{userId}},\n  \"doctorId\": {{doctorId}},\n  \"nurseId\": {{nurseId}},\n  \"appointmentAt\": \"{{appointmentAt}}\",\n  \"reason\": \"Admin booked appointment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": "{{baseUrl}}/api/appointments"
               }
             },
-            { "name": "Get All Appointments", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments" } },
-            { "name": "Get Appointments For Patient", "description": "Set patientId to the selected patient's user ID (Authentication > Patient Login or Admin > Create User populates it when creating a patient).", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments/patient/{{patientId}}" } },
-            { "name": "Get Appointments For Doctor", "description": "Uses doctorId populated by Authentication > Doctor Login.", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/admin/appointments/doctor/{{doctorId}}" } }
+            {
+              "name": "Get All Appointments",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/appointments"
+              }
+            },
+            {
+              "name": "Get Appointments For Patient",
+              "description": "Set patientId to the selected patient's user ID (Authentication > Patient Login or Admin > Create User populates it when creating a patient).",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/appointments/patient/{{patientId}}"
+              }
+            },
+            {
+              "name": "Get Appointments For Doctor",
+              "description": "Uses doctorId populated by Authentication > Doctor Login.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/admin/appointments/doctor/{{doctorId}}"
+              }
+            }
           ]
         }
       ]
@@ -418,68 +1147,162 @@
     {
       "name": "Patient Profile",
       "description": "Patient profile operations. Run Patient Login first to populate userToken and userId.",
-      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{userToken}}", "type": "string" }] },
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{userToken}}",
+            "type": "string"
+          }
+        ]
+      },
       "item": [
         {
           "name": "Create Own Profile",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Profile creation returns 201', function () {",
-            "    pm.response.to.have.status(201);",
-            "    const body = pm.response.json();",
-            "    pm.expect(body.id).to.exist;",
-            "    pm.environment.set('profileId', body.id);",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile creation returns 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.exist;",
+                  "    pm.environment.set('profileId', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\",\n  \"address\": \"Postman Test Address\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0001\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0000\",\n  \"address\": \"Postman Test Address\",\n  \"emergencyContactName\": \"Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/profile"
           }
         },
         {
           "name": "Get Own Profile",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Own profile fetch returns 200', function () {",
-            "    pm.response.to.have.status(200);",
-            "    pm.expect(String(pm.response.json().id)).to.eql(String(pm.environment.get('profileId')));",
-            "});"
-          ] } }],
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/profile/{{userId}}" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Own profile fetch returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(String(pm.response.json().id)).to.eql(String(pm.environment.get('profileId')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/profile/{{userId}}"
+          }
         },
         {
           "name": "Update Own Profile",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Own profile update returns updated data', function () {",
-            "    pm.response.to.have.status(200);",
-            "    pm.expect(pm.response.json().phoneNumber).to.eql('000-000-0002');",
-            "});"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Own profile update returns updated data', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().phoneNumber).to.eql('000-000-0002');",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0002\",\n  \"address\": \"Updated Postman Test Address\",\n  \"emergencyContactName\": \"Updated Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0003\"\n}", "options": { "raw": { "language": "json" } } },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateOfBirth\": \"1990-01-01\",\n  \"phoneNumber\": \"000-000-0002\",\n  \"address\": \"Updated Postman Test Address\",\n  \"emergencyContactName\": \"Updated Test Contact\",\n  \"emergencyContactPhone\": \"000-000-0003\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": "{{baseUrl}}/api/profile/{{userId}}"
           }
         },
         {
           "name": "Reject Unauthenticated Profile Read",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('Unauthenticated profile fetch returns 401', function () { pm.response.to.have.status(401); });"
-          ] } }],
-          "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/api/profile/{{userId}}" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthenticated profile fetch returns 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/profile/{{userId}}"
+          }
         },
         {
           "name": "Reject Reading Another User Profile",
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "pm.environment.set('otherUserId', String(Number(pm.environment.get('userId')) + 999999));"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('Reading another account profile returns 403', function () { pm.response.to.have.status(403); });"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('otherUserId', String(Number(pm.environment.get('userId')) + 999999));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reading another account profile returns 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
           ],
-          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/profile/{{otherUserId}}" }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/profile/{{otherUserId}}"
+          }
         }
       ]
     }

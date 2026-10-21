@@ -9,6 +9,11 @@ import com.aman.hospital_management.exception.UserNotFoundException;
 import com.aman.hospital_management.model.AppUser;
 import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.repository.UserRepository;
+import com.aman.hospital_management.repository.HospitalRepository;
+import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.model.Hospital;
+import com.aman.hospital_management.model.HospitalMembership;
+import com.aman.hospital_management.security.HospitalContext;
 import com.aman.hospital_management.security.JwtService;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -35,42 +40,37 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final HospitalRepository hospitalRepository;
+    private final HospitalMembershipRepository membershipRepository;
 
 
 
 
+    @Transactional
     public UserResponse register(RegisterRequest request) {
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-
-            throw new EmailAlreadyExistsException(
-                    "User with this email already exists"
-            );
+        if (request.getRole() == Role.PLATFORM_ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Platform admin cannot be assigned through hospital user management.");
         }
 
-
-        String encodedPassword =
-                passwordEncoder.encode(request.getPassword());
-
-
-        AppUser user = new AppUser(
-                request.getName(),
-                request.getEmail(),
-                encodedPassword,
-                request.getRole()
-        );
-
-
-        AppUser savedUser =
-                userRepository.save(user);
+        Hospital hospital = hospitalRepository.findById(HospitalContext.requireHospitalId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital not found."));
+        AppUser savedUser = userRepository.findByEmail(request.getEmail()).orElseGet(() ->
+                userRepository.save(new AppUser(request.getName(), request.getEmail(),
+                        passwordEncoder.encode(request.getPassword()), request.getRole())));
+        if (membershipRepository.existsByHospital_IdAndUser_IdAndEnabledTrue(hospital.getId(), savedUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already a member of this hospital.");
+        }
+        membershipRepository.save(new HospitalMembership(hospital, savedUser, request.getRole()));
 
 
         return new UserResponse(
                 savedUser.getId(),
                 savedUser.getName(),
                 savedUser.getEmail(),
-                savedUser.getRole(),
-                savedUser.isEnabled()
+                request.getRole(),
+                savedUser.isEnabled(),
+                hospital.getId()
         );
     }
 
@@ -88,16 +88,21 @@ public class AuthService {
             throw new EmailAlreadyExistsException("User with this email already exists");
         }
 
+        if (hospitalRepository.existsByCodeIgnoreCase(request.getHospitalCode())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hospital code already exists.");
+        }
+        Hospital hospital = hospitalRepository.save(new Hospital(request.getHospitalName(), request.getHospitalCode()));
         AppUser admin = new AppUser(
                 request.getName(),
                 request.getEmail(),
                 passwordEncoder.encode(request.getPassword()),
-                Role.ADMIN
+                Role.PLATFORM_ADMIN
         );
         AppUser savedAdmin = userRepository.save(admin);
+        membershipRepository.save(new HospitalMembership(hospital, savedAdmin, Role.PLATFORM_ADMIN));
         return new UserResponse(
                 savedAdmin.getId(), savedAdmin.getName(), savedAdmin.getEmail(),
-                savedAdmin.getRole(), savedAdmin.isEnabled()
+                savedAdmin.getRole(), savedAdmin.isEnabled(), hospital.getId()
         );
     }
 
@@ -125,9 +130,20 @@ public class AuthService {
                                 new UserNotFoundException("User not found")
                         );
 
+        var memberships = membershipRepository.findByUser_EmailAndEnabledTrue(user.getEmail());
+        var selected = request.getHospitalId() == null
+                ? (memberships.size() == 1 ? memberships.get(0) : null)
+                : memberships.stream().filter(m -> m.getHospital().getId().equals(request.getHospitalId())).findFirst().orElse(null);
+        if (selected == null || !selected.getHospital().isEnabled()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    memberships.size() > 1 && request.getHospitalId() == null
+                            ? "hospitalId is required when your account belongs to multiple hospitals."
+                            : "You do not have an active membership in the selected hospital.");
+        }
+
 
         String token =
-                jwtService.generateToken(userDetails);
+                jwtService.generateToken(userDetails, selected.getHospital().getId());
 
 
         return new AuthResponse(
@@ -135,7 +151,8 @@ public class AuthService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole().name()
+                selected.getRole().name(),
+                selected.getHospital().getId()
         );
     }
 }

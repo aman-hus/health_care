@@ -13,6 +13,7 @@ import javax.crypto.SecretKey;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Map;
 
 @Service
 public class JwtService {
@@ -36,6 +37,10 @@ public class JwtService {
 
 
     public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, null);
+    }
+
+    public String generateToken(UserDetails userDetails, Long hospitalId) {
 
         Date now = new Date();
 
@@ -43,7 +48,7 @@ public class JwtService {
                 new Date(now.getTime() + expiration);
 
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
 
                 .subject(userDetails.getUsername())
 
@@ -51,9 +56,9 @@ public class JwtService {
 
                 .expiration(expiryDate)
 
-                .signWith(secretKey)
-
-                .compact();
+                .signWith(secretKey);
+        if (hospitalId != null) builder.claim("hospitalId", hospitalId);
+        return builder.compact();
     }
 
     /** Parse the token only after verifying its signature and expiration. */

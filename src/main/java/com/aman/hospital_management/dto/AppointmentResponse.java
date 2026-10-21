@@ -1,6 +1,7 @@
 package com.aman.hospital_management.dto;
 
 import com.aman.hospital_management.model.Appointment;
+import com.aman.hospital_management.model.AppointmentStatus;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ public record AppointmentResponse(
         Long nurseId,
         String nurseName,
         LocalDateTime appointmentAt,
+        AppointmentStatus status,
         String reason,
         LocalDateTime createdAt
 ) {
@@ -22,7 +24,7 @@ public record AppointmentResponse(
                 appointment.getDoctor().getId(), appointment.getDoctor().getName(),
                 appointment.getNurse() == null ? null : appointment.getNurse().getId(),
                 appointment.getNurse() == null ? null : appointment.getNurse().getName(),
-                appointment.getAppointmentAt(), appointment.getReason(), appointment.getCreatedAt()
+                appointment.getAppointmentAt(), appointment.getStatus(), appointment.getReason(), appointment.getCreatedAt()
         );
     }
 }

@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1180" viewBox="0 0 1700 1180" role="img" aria-labelledby="title description">
+  <title id="title">Hospital Management System — Entity Relationship Diagram</title>
+  <desc id="description">ER diagram for the multi-hospital schema: hospitals, hospital memberships, users, appointments, and patient profiles.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#17243b" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f4f7fb; }
+      .title { font: 700 31px 'Segoe UI', Arial, sans-serif; fill: #17243b; }
+      .subtitle { font: 15px 'Segoe UI', Arial, sans-serif; fill: #5f6e83; }
+      .card { fill: #fff; stroke: #d6deea; stroke-width: 1.3; filter: url(#shadow); }
+      .head { fill: #1e3150; }
+      .headText { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #fff; letter-spacing: .6px; }
+      .field { font: 15px 'Cascadia Code', Consolas, monospace; fill: #26354c; }
+      .muted { fill: #687990; }
+      .rule { stroke: #e8edf4; stroke-width: 1; }
+      .connector { fill: none; stroke: #71839d; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+      .rel { font: 600 13px 'Segoe UI', Arial, sans-serif; fill: #52647e; }
+      .cardinality { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #26354c; }
+      .note { font: 14px 'Segoe UI', Arial, sans-serif; fill: #53647c; }
+      .key { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #fff; }
+      .pill { fill: #e9eff8; }
+      .pk { fill: #315c9b; }
+      .fk { fill: #537c69; }
+      .uk { fill: #9a6c32; }
+    </style>
+  </defs>
+  <rect class="bg" width="1700" height="1180"/>
+  <text class="title" x="70" y="58">Hospital Management System</text>
+  <text class="subtitle" x="70" y="87">Multi-hospital relational schema · tenant-scoped memberships and appointments</text>
+
+  <!-- Relationships behind the tables -->
+  <path class="connector" d="M480 260 H610"/>
+  <text class="rel" x="507" y="244">has members</text>
+  <text class="cardinality" x="486" y="279">1</text>
+  <text class="cardinality" x="585" y="279">0..*</text>
+
+  <path class="connector" d="M1060 260 H1200"/>
+  <text class="rel" x="1080" y="244">membership for</text>
+  <text class="cardinality" x="1066" y="279">0..*</text>
+  <text class="cardinality" x="1172" y="279">1</text>
+
+  <path class="connector" d="M430 390 C430 515 520 535 520 650"/>
+  <text class="rel" x="442" y="523">owns</text>
+  <text class="cardinality" x="435" y="414">1</text>
+  <text class="cardinality" x="502" y="637">0..*</text>
+
+  <path class="connector" d="M1200 265 C1055 265 1040 705 580 705"/>
+  <text class="rel" x="895" y="650">patient_id</text>
+  <text class="cardinality" x="1172" y="283">1</text>
+  <text class="cardinality" x="588" y="699">0..*</text>
+
+  <path class="connector" d="M1200 320 C1030 320 1000 815 580 815"/>
+  <text class="rel" x="870" y="780">doctor_id</text>
+  <text class="cardinality" x="1172" y="338">1</text>
+  <text class="cardinality" x="588" y="809">0..*</text>
+
+  <path class="connector" d="M1200 375 C1010 375 960 925 580 925"/>
+  <text class="rel" x="830" y="891">nurse_id (optional)</text>
+  <text class="cardinality" x="1162" y="393">0..1</text>
+  <text class="cardinality" x="588" y="919">0..*</text>
+
+  <path class="connector" d="M1410 440 V690"/>
+  <text class="rel" x="1422" y="565">owns profile</text>
+  <text class="cardinality" x="1420" y="463">1</text>
+  <text class="cardinality" x="1420" y="680">0..1</text>
+
+  <!-- HOSPITALS -->
+  <g>
+    <rect class="card" x="80" y="130" width="400" height="260" rx="12"/>
+    <path class="head" d="M92 130 H468 Q480 130 480 142 V178 H80 V142 Q80 130 92 130Z"/>
+    <text class="headText" x="104" y="161">HOSPITALS</text>
+    <rect class="pill pk" x="390" y="143" width="48" height="22" rx="11"/><text class="key" x="401" y="158">PK</text>
+    <text class="field" x="104" y="211"><tspan font-weight="700">id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <line class="rule" x1="100" y1="224" x2="460" y2="224"/>
+    <text class="field" x="104" y="249">name : varchar(160)</text>
+    <line class="rule" x1="100" y1="262" x2="460" y2="262"/>
+    <text class="field" x="104" y="287">code : varchar(80)</text>
+    <rect class="pill uk" x="389" y="270" width="48" height="22" rx="11"/><text class="key" x="400" y="285">UK</text>
+    <line class="rule" x1="100" y1="300" x2="460" y2="300"/>
+    <text class="field" x="104" y="325">enabled : boolean</text>
+    <line class="rule" x1="100" y1="338" x2="460" y2="338"/>
+    <text class="field" x="104" y="363">created_at : timestamp</text>
+  </g>
+
+  <!-- HOSPITAL_MEMBERSHIPS -->
+  <g>
+    <rect class="card" x="610" y="130" width="450" height="310" rx="12"/>
+    <path class="head" d="M622 130 H1048 Q1060 130 1060 142 V178 H610 V142 Q610 130 622 130Z"/>
+    <text class="headText" x="634" y="161">HOSPITAL_MEMBERSHIPS</text>
+    <rect class="pill pk" x="985" y="143" width="48" height="22" rx="11"/><text class="key" x="996" y="158">PK</text>
+    <text class="field" x="634" y="211"><tspan font-weight="700">id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <line class="rule" x1="630" y1="224" x2="1040" y2="224"/>
+    <text class="field" x="634" y="249"><tspan font-weight="700">hospital_id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <rect class="pill fk" x="918" y="232" width="48" height="22" rx="11"/><text class="key" x="929" y="247">FK</text>
+    <line class="rule" x1="630" y1="262" x2="1040" y2="262"/>
+    <text class="field" x="634" y="287"><tspan font-weight="700">user_id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <rect class="pill fk" x="918" y="270" width="48" height="22" rx="11"/><text class="key" x="929" y="285">FK</text>
+    <line class="rule" x1="630" y1="300" x2="1040" y2="300"/>
+    <text class="field" x="634" y="325">role : varchar(32)</text>
+    <line class="rule" x1="630" y1="338" x2="1040" y2="338"/>
+    <text class="field" x="634" y="363">enabled : boolean</text>
+    <line class="rule" x1="630" y1="376" x2="1040" y2="376"/>
+    <text class="field" x="634" y="401">UNIQUE (hospital_id, user_id)</text>
+  </g>
+
+  <!-- USERS -->
+  <g>
+    <rect class="card" x="1200" y="130" width="420" height="310" rx="12"/>
+    <path class="head" d="M1212 130 H1608 Q1620 130 1620 142 V178 H1200 V142 Q1200 130 1212 130Z"/>
+    <text class="headText" x="1224" y="161">USERS</text>
+    <rect class="pill pk" x="1543" y="143" width="48" height="22" rx="11"/><text class="key" x="1554" y="158">PK</text>
+    <text class="field" x="1224" y="211"><tspan font-weight="700">id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <line class="rule" x1="1220" y1="224" x2="1600" y2="224"/>
+    <text class="field" x="1224" y="249">name : varchar(255)</text>
+    <line class="rule" x1="1220" y1="262" x2="1600" y2="262"/>
+    <text class="field" x="1224" y="287">email : varchar(255)</text>
+    <rect class="pill uk" x="1543" y="270" width="48" height="22" rx="11"/><text class="key" x="1554" y="285">UK</text>
+    <line class="rule" x1="1220" y1="300" x2="1600" y2="300"/>
+    <text class="field" x="1224" y="325">password_hash : varchar</text>
+    <line class="rule" x1="1220" y1="338" x2="1600" y2="338"/>
+    <text class="field" x="1224" y="363">role : varchar(32) *</text>
+    <line class="rule" x1="1220" y1="376" x2="1600" y2="376"/>
+    <text class="field" x="1224" y="401">enabled : boolean</text>
+    <text class="field muted" x="1224" y="425">created_at, updated_at</text>
+  </g>
+
+  <!-- APPOINTMENTS -->
+  <g>
+    <rect class="card" x="80" y="650" width="500" height="370" rx="12"/>
+    <path class="head" d="M92 650 H568 Q580 650 580 662 V698 H80 V662 Q80 650 92 650Z"/>
+    <text class="headText" x="104" y="681">APPOINTMENTS</text>
+    <rect class="pill pk" x="500" y="663" width="48" height="22" rx="11"/><text class="key" x="511" y="678">PK</text>
+    <text class="field" x="104" y="731"><tspan font-weight="700">id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <line class="rule" x1="100" y1="744" x2="560" y2="744"/>
+    <text class="field" x="104" y="769"><tspan font-weight="700">hospital_id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <rect class="pill fk" x="490" y="752" width="48" height="22" rx="11"/><text class="key" x="501" y="767">FK</text>
+    <line class="rule" x1="100" y1="782" x2="560" y2="782"/>
+    <text class="field" x="104" y="807"><tspan font-weight="700">patient_id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <rect class="pill fk" x="490" y="790" width="48" height="22" rx="11"/><text class="key" x="501" y="805">FK</text>
+    <line class="rule" x1="100" y1="820" x2="560" y2="820"/>
+    <text class="field" x="104" y="845"><tspan font-weight="700">doctor_id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <rect class="pill fk" x="490" y="828" width="48" height="22" rx="11"/><text class="key" x="501" y="843">FK</text>
+    <line class="rule" x1="100" y1="858" x2="560" y2="858"/>
+    <text class="field" x="104" y="883">nurse_id : bigint (nullable)</text>
+    <rect class="pill fk" x="490" y="866" width="48" height="22" rx="11"/><text class="key" x="501" y="881">FK</text>
+    <line class="rule" x1="100" y1="896" x2="560" y2="896"/>
+    <text class="field" x="104" y="921">appointment_at : timestamp</text>
+    <line class="rule" x1="100" y1="934" x2="560" y2="934"/>
+    <text class="field" x="104" y="959">reason : varchar(1000), nullable</text>
+    <text class="field muted" x="104" y="997">created_at : timestamp</text>
+  </g>
+
+  <!-- PATIENT_PROFILES -->
+  <g>
+    <rect class="card" x="1200" y="690" width="420" height="360" rx="12"/>
+    <path class="head" d="M1212 690 H1608 Q1620 690 1620 702 V738 H1200 V702 Q1200 690 1212 690Z"/>
+    <text class="headText" x="1224" y="721">PATIENT_PROFILES</text>
+    <rect class="pill pk" x="1543" y="703" width="48" height="22" rx="11"/><text class="key" x="1554" y="718">PK</text>
+    <text class="field" x="1224" y="771"><tspan font-weight="700">id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <line class="rule" x1="1220" y1="784" x2="1600" y2="784"/>
+    <text class="field" x="1224" y="809"><tspan font-weight="700">user_id</tspan><tspan class="muted"> : bigint</tspan></text>
+    <rect class="pill fk" x="1480" y="792" width="48" height="22" rx="11"/><text class="key" x="1491" y="807">FK</text>
+    <rect class="pill uk" x="1543" y="792" width="48" height="22" rx="11"/><text class="key" x="1554" y="807">UK</text>
+    <line class="rule" x1="1220" y1="822" x2="1600" y2="822"/>
+    <text class="field" x="1224" y="847">date_of_birth : date (nullable)</text>
+    <line class="rule" x1="1220" y1="860" x2="1600" y2="860"/>
+    <text class="field" x="1224" y="885">phone_number : varchar(30), nullable</text>
+    <line class="rule" x1="1220" y1="898" x2="1600" y2="898"/>
+    <text class="field" x="1224" y="923">address : varchar(500), nullable</text>
+    <line class="rule" x1="1220" y1="936" x2="1600" y2="936"/>
+    <text class="field" x="1224" y="961">emergency_contact_name : varchar(120)</text>
+    <line class="rule" x1="1220" y1="974" x2="1600" y2="974"/>
+    <text class="field" x="1224" y="999">emergency_contact_phone : varchar(30)</text>
+    <text class="field muted" x="1224" y="1037">created_at, updated_at : timestamp</text>
+  </g>
+
+  <!-- Footer / legend -->
+  <rect x="640" y="1060" width="980" height="88" rx="12" fill="#eaf0f7"/>
+  <text class="note" x="666" y="1093"><tspan font-weight="700">PK</tspan> primary key   ·   <tspan font-weight="700">FK</tspan> foreign key   ·   <tspan font-weight="700">UK</tspan> unique key</text>
+  <text class="note" x="666" y="1122">Membership role is hospital-scoped. Patient profiles are account-wide; appointments are hospital-scoped.</text>
+  <text class="note" x="80" y="1080">* Legacy users.role remains for compatibility; tenant authorization uses hospital_memberships.role.</text>
+  <text class="subtitle" x="80" y="1110">Schema based on the project’s entity mappings and PostgreSQL migration script.</text>
+</svg>
