@@ -33,12 +33,6 @@ public class HospitalService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Hospital code already exists.");
         }
         Hospital hospital = hospitalRepository.save(new Hospital(request.name().trim(), request.code().trim()));
-        var caller = userRepository.findByEmail(org.springframework.security.core.context.SecurityContextHolder
-                        .getContext().getAuthentication().getName())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED)).getId();
-        var callerUser = userRepository.findById(caller).orElseThrow();
-        membershipRepository.save(new HospitalMembership(hospital, callerUser, com.aman.hospital_management.model.Role.PLATFORM_ADMIN));
-
         if (userRepository.existsByEmail(request.adminEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An account with the hospital admin email already exists.");
         }

@@ -60,23 +60,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email = claims.getSubject();
             Long hospitalId = claims.get("hospitalId", Long.class);
 
-            if (email != null && hospitalId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                var membership = membershipRepository.findByHospital_IdAndUser_EmailAndEnabledTrue(hospitalId, email)
-                        .orElseThrow(() -> new UsernameNotFoundException("No active membership for selected hospital."));
-                if (userDetails.isEnabled() && email.equals(userDetails.getUsername()) && membership.getHospital().isEnabled()) {
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
-                                            "ROLE_" + membership.getRole().name()))
-                            );
-                    authentication.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    HospitalContext.set(hospitalId);
+                if (hospitalId == null) {
+                    boolean platformAdmin = userDetails.getAuthorities().stream()
+                            .anyMatch(authority -> authority.getAuthority().equals("ROLE_PLATFORM_ADMIN"));
+                    if (platformAdmin && userDetails.isEnabled()) {
+                        var authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } else {
+                    var membership = membershipRepository.findByHospital_IdAndUser_EmailAndEnabledTrue(hospitalId, email)
+                            .orElseThrow(() -> new UsernameNotFoundException("No active membership for selected hospital."));
+                    if (userDetails.isEnabled() && email.equals(userDetails.getUsername()) && membership.getHospital().isEnabled()) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                                "ROLE_" + membership.getRole().name()))
+                                );
+                        authentication.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request)
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        HospitalContext.set(hospitalId);
+                    }
                 }
             }
         } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ex) {

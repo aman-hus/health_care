@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Hospital Management API",
-    "description": "Multi-hospital API. Fresh database: run Authentication > Initial Platform Admin Setup, list hospitals, then use Platform Admin Login to create additional hospitals together with their first hospital admin. Hospital admins create users under their token hospital; the request body does not include hospitalId, and the response includes it. Existing installations should run the documented SQL migration before using this collection.",
+    "description": "Multi-hospital API. Fresh database: run Initial Platform Admin Setup, log in as platform admin without a hospitalId, create a hospital, then log in as the hospital admin created during hospital provisioning. Hospital admins create users under their token hospital.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -107,7 +107,7 @@
     },
     {
       "name": "Authentication",
-      "description": "On a fresh database, create the platform admin and first hospital. Platform admins can create additional hospitals with their first hospital admin. Hospital-scoped user creation uses the logged-in admin token hospital.",
+      "description": "On a fresh database, create a platform admin account without creating a hospital. Log in as the platform admin, then create hospitals separately in the Admin folder. Hospital-scoped user creation uses the hospital admin token hospital.",
       "item": [
         {
           "name": "List Hospitals (select before login)",
@@ -145,7 +145,7 @@
         },
         {
           "name": "Initial Platform Admin Setup (run once)",
-          "description": "Fresh database only. Creates the first PLATFORM_ADMIN and first hospital. Set adminName, adminEmail, adminPassword, hospitalName, and hospitalCode first. Then run List Hospitals before login. Existing installations should use the SQL migration instead.",
+          "description": "Fresh database only. Creates only the first PLATFORM_ADMIN account. Set adminName, adminEmail, and adminPassword. Then log in as the platform admin and create a hospital separately using Admin > Hospital Management > Create Hospital.",
           "event": [
             {
               "listen": "test",
@@ -175,7 +175,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"hospitalName\": \"{{hospitalName}}\",\n  \"hospitalCode\": \"{{hospitalCode}}\"\n}",
+              "raw": "{\n  \"name\": \"{{adminName}}\",\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -194,14 +194,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Admin login returns a token for the selected hospital', function () {",
+                  "pm.test('Platform admin login returns a token', function () {",
                   "    pm.response.to.have.status(200);",
                   "    const body = pm.response.json();",
                   "    pm.expect(body.token).to.be.a('string').and.not.empty;",
                   "    pm.expect(['ADMIN', 'PLATFORM_ADMIN']).to.include(body.role);",
-                  "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('hospitalId')));",
                   "    pm.environment.set('adminToken', body.token);",
-                  "    pm.environment.set('userDirectoryToken', body.token);",
                   "    pm.environment.set('adminId', body.userId);",
                   "});"
                 ]
@@ -221,7 +219,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -459,7 +457,7 @@
     },
     {
       "name": "Admin",
-      "description": "Admin-only features. Set adminToken by running Authentication > Admin Login.",
+      "description": "Platform admins use adminToken to create hospitals. After provisioning, run Hospital Admin Login before hospital-scoped user and appointment requests.",
       "auth": {
         "type": "bearer",
         "bearer": [
@@ -473,7 +471,7 @@
       "item": [
         {
           "name": "Hospital Management",
-          "description": "Platform admins can create hospitals. Organization-specific user and appointment requests remain scoped to the currently selected hospital token.",
+          "description": "Platform admins create hospitals separately from their platform account. Hospital-specific operations use a hospital admin token.",
           "item": [
             {
               "name": "Create Hospital (Platform Admin)",
@@ -515,7 +513,7 @@
                 },
                 "url": "{{baseUrl}}/api/admin/hospitals"
               },
-              "description": "Platform admin only. Creates a hospital and its first ADMIN account in one transaction. The response returns hospitalId and admin details."
+              "description": "Platform admin only. Creates a hospital and its first ADMIN account in one transaction. The response returns hospitalId and admin details. The platform admin is not added as a hospital member."
             },
             {
               "name": "List Hospitals (Admin)",

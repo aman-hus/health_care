@@ -88,10 +88,6 @@ public class AuthService {
             throw new EmailAlreadyExistsException("User with this email already exists");
         }
 
-        if (hospitalRepository.existsByCodeIgnoreCase(request.getHospitalCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hospital code already exists.");
-        }
-        Hospital hospital = hospitalRepository.save(new Hospital(request.getHospitalName(), request.getHospitalCode()));
         AppUser admin = new AppUser(
                 request.getName(),
                 request.getEmail(),
@@ -99,10 +95,9 @@ public class AuthService {
                 Role.PLATFORM_ADMIN
         );
         AppUser savedAdmin = userRepository.save(admin);
-        membershipRepository.save(new HospitalMembership(hospital, savedAdmin, Role.PLATFORM_ADMIN));
         return new UserResponse(
                 savedAdmin.getId(), savedAdmin.getName(), savedAdmin.getEmail(),
-                savedAdmin.getRole(), savedAdmin.isEnabled(), hospital.getId()
+                savedAdmin.getRole(), savedAdmin.isEnabled(), null
         );
     }
 
@@ -131,6 +126,11 @@ public class AuthService {
                         );
 
         var memberships = membershipRepository.findByUser_EmailAndEnabledTrue(user.getEmail());
+        if (user.getRole() == Role.PLATFORM_ADMIN && memberships.isEmpty() && request.getHospitalId() == null) {
+            String token = jwtService.generateToken(userDetails);
+            return new AuthResponse(token, user.getId(), user.getName(), user.getEmail(),
+                    Role.PLATFORM_ADMIN.name(), null);
+        }
         var selected = request.getHospitalId() == null
                 ? (memberships.size() == 1 ? memberships.get(0) : null)
                 : memberships.stream().filter(m -> m.getHospital().getId().equals(request.getHospitalId())).findFirst().orElse(null);

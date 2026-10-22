@@ -20,6 +20,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -145,6 +146,9 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/admin/hospitals").hasRole("PLATFORM_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/admin/hospitals").hasAnyRole("ADMIN", "PLATFORM_ADMIN")
+                        .requestMatchers("/api/admin/users/**", "/api/admin/appointments/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "PLATFORM_ADMIN")
                         .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
                         .requestMatchers("/api/nurse/**").hasRole("NURSE")
