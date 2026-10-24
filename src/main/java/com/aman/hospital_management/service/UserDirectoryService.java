@@ -2,6 +2,8 @@ package com.aman.hospital_management.service;
 
 import com.aman.hospital_management.dto.UserDirectoryResponse;
 import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.repository.UserRepository;
+import com.aman.hospital_management.dto.MyProfileResponse;
 import com.aman.hospital_management.security.HospitalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,14 @@ import java.util.List;
 public class UserDirectoryService {
 
     private final HospitalMembershipRepository membershipRepository;
+    private final UserRepository userRepository;
+
+    @Transactional(readOnly = true)
+    public MyProfileResponse getMyProfile(String email) {
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return new MyProfileResponse(user.getId(), user.getName(), user.getEmail(), user.getProfileImageUrl());
+    }
 
     @Transactional(readOnly = true)
     public List<UserDirectoryResponse> getAllUsers() {
@@ -23,7 +33,7 @@ public class UserDirectoryService {
                 .map(membership -> {
                     var user = membership.getUser();
                     return new UserDirectoryResponse(user.getId(), user.getName(), user.getEmail(), membership.getRole(),
-                            user.isEnabled(), user.getCreatedAt(), user.getUpdatedAt());
+                            user.isEnabled(), user.getProfileImageUrl(), user.getCreatedAt(), user.getUpdatedAt());
                 })
                 .toList();
     }
@@ -41,8 +51,10 @@ public class UserDirectoryService {
                 user.getEmail(),
                 membership.getRole(),
                 user.isEnabled(),
+                user.getProfileImageUrl(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
     }
+
 }

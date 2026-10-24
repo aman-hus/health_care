@@ -74,6 +74,6 @@ public class PatientProfileService {
     private PatientProfileResponse toResponse(PatientProfile profile) {
         return new PatientProfileResponse(profile.getId(), profile.getDateOfBirth(), profile.getPhoneNumber(),
                 profile.getAddress(), profile.getEmergencyContactName(), profile.getEmergencyContactPhone(),
-                profile.getCreatedAt(), profile.getUpdatedAt());
+                profile.getUser().getProfileImageUrl(), profile.getCreatedAt(), profile.getUpdatedAt());
     }
 }

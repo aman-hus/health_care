@@ -4,6 +4,7 @@ import com.aman.hospital_management.security.CustomUserDetailsService;
 import com.aman.hospital_management.security.JwtAuthenticationFilter;
 import com.aman.hospital_management.security.JwtService;
 import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.service.TokenRevocationService;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
@@ -39,15 +40,18 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final HospitalMembershipRepository membershipRepository;
+    private final TokenRevocationService tokenRevocationService;
 
     public SecurityConfig(
             CustomUserDetailsService userDetailsService,
             JwtService jwtService,
-            HospitalMembershipRepository membershipRepository
+            HospitalMembershipRepository membershipRepository,
+            TokenRevocationService tokenRevocationService
     ) {
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.membershipRepository = membershipRepository;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
 
@@ -101,7 +105,7 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain authEndpoints(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/api/auth/**")
+                .securityMatcher("/api/auth/login", "/api/auth/bootstrap-admin", "/api/auth/hospitals")
                 .cors(cors -> {})
                 .csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
@@ -141,11 +145,12 @@ public class SecurityConfig {
                                 "Your account does not have permission to access this resource."
                         )))
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtService, userDetailsService, membershipRepository),
+                        new JwtAuthenticationFilter(jwtService, userDetailsService, membershipRepository, tokenRevocationService),
                         UsernamePasswordAuthenticationFilter.class
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/admin/hospitals").hasRole("PLATFORM_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/admin/hospitals").hasAnyRole("ADMIN", "PLATFORM_ADMIN")
                         .requestMatchers("/api/admin/users/**", "/api/admin/appointments/**").hasRole("ADMIN")
@@ -156,7 +161,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
                         .requestMatchers("/api/appointments/**").hasAnyRole("ADMIN", "NURSE", "DOCTOR", "PATIENT")
                         .requestMatchers("/api/management/**").hasAnyRole("ADMIN", "MEDICAL_STAFF")
-                        .requestMatchers("/api/profile/**").hasRole("PATIENT")
+                        .requestMatchers("/api/profile/**","/api/file/**").hasRole("PATIENT")
                         .requestMatchers("/api/users/**").authenticated()
                         // New API routes must receive an explicit role policy before they are accessible.
                         .anyRequest().denyAll()

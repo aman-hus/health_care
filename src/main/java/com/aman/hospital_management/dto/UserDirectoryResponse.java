@@ -11,6 +11,7 @@ public record UserDirectoryResponse(
         String email,
         Role role,
         boolean enabled,
+        String profileImageUrl,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

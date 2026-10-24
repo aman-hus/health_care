@@ -14,6 +14,7 @@ public class PatientProfileResponse {
     private String address;
     private String emergencyContactName;
     private String emergencyContactPhone;
+    private String profileImageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

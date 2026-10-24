@@ -8,6 +8,7 @@ package com.aman.hospital_management.model;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(
@@ -27,6 +28,22 @@ public class AppUser {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "contact_number", length = 30)
+    private String contactNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private Gender gender;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "profile_image_url", length = 1000)
+    private String profileImageUrl;
+
+    @Column(name = "profile_image_public_id", length = 255)
+    private String profileImagePublicId;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -67,6 +84,14 @@ public class AppUser {
         this.enabled = true;
     }
 
+    public AppUser(String name, String email, String passwordHash, Role role,
+                   String contactNumber, Gender gender, LocalDate dateOfBirth) {
+        this(name, email, passwordHash, role);
+        this.contactNumber = contactNumber;
+        this.gender = gender;
+        this.dateOfBirth = dateOfBirth;
+    }
+
 
     @PrePersist
     protected void onCreate() {
@@ -103,6 +128,17 @@ public class AppUser {
     public void setName(String name) {
         this.name = name;
     }
+
+    public String getContactNumber() { return contactNumber; }
+    public void setContactNumber(String contactNumber) { this.contactNumber = contactNumber; }
+    public Gender getGender() { return gender; }
+    public void setGender(Gender gender) { this.gender = gender; }
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
+    public String getProfileImagePublicId() { return profileImagePublicId; }
+    public void setProfileImagePublicId(String profileImagePublicId) { this.profileImagePublicId = profileImagePublicId; }
 
 
     public String getEmail() {

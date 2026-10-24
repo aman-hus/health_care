@@ -57,7 +57,8 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Hospital not found."));
         AppUser savedUser = userRepository.findByEmail(request.getEmail()).orElseGet(() ->
                 userRepository.save(new AppUser(request.getName(), request.getEmail(),
-                        passwordEncoder.encode(request.getPassword()), request.getRole())));
+                        passwordEncoder.encode(request.getPassword()), request.getRole(),
+                        request.getContactNumber(), request.getGender(), request.getDateOfBirth())));
         if (membershipRepository.existsByHospital_IdAndUser_IdAndEnabledTrue(hospital.getId(), savedUser.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already a member of this hospital.");
         }
@@ -70,7 +71,8 @@ public class AuthService {
                 savedUser.getEmail(),
                 request.getRole(),
                 savedUser.isEnabled(),
-                hospital.getId()
+                hospital.getId(),
+                savedUser.getContactNumber(), savedUser.getGender(), savedUser.getDateOfBirth()
         );
     }
 
@@ -97,7 +99,8 @@ public class AuthService {
         AppUser savedAdmin = userRepository.save(admin);
         return new UserResponse(
                 savedAdmin.getId(), savedAdmin.getName(), savedAdmin.getEmail(),
-                savedAdmin.getRole(), savedAdmin.isEnabled(), null
+                savedAdmin.getRole(), savedAdmin.isEnabled(), null,
+                savedAdmin.getContactNumber(), savedAdmin.getGender(), savedAdmin.getDateOfBirth()
         );
     }
 
@@ -129,7 +132,7 @@ public class AuthService {
         if (user.getRole() == Role.PLATFORM_ADMIN && memberships.isEmpty() && request.getHospitalId() == null) {
             String token = jwtService.generateToken(userDetails);
             return new AuthResponse(token, user.getId(), user.getName(), user.getEmail(),
-                    Role.PLATFORM_ADMIN.name(), null);
+                    Role.PLATFORM_ADMIN.name(), null, user.getProfileImageUrl());
         }
         var selected = request.getHospitalId() == null
                 ? (memberships.size() == 1 ? memberships.get(0) : null)
@@ -152,7 +155,8 @@ public class AuthService {
                 user.getName(),
                 user.getEmail(),
                 selected.getRole().name(),
-                selected.getHospital().getId()
+                selected.getHospital().getId(),
+                user.getProfileImageUrl()
         );
     }
 }

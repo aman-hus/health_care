@@ -9,6 +9,7 @@ public class AuthResponse {
     private String email;
     private String role;
     private Long hospitalId;
+    private String profileImageUrl;
 
 
     public AuthResponse(
@@ -17,7 +18,8 @@ public class AuthResponse {
             String name,
             String email,
             String role,
-            Long hospitalId
+            Long hospitalId,
+            String profileImageUrl
     ) {
         this.token = token;
         this.tokenType = "Bearer";
@@ -26,6 +28,7 @@ public class AuthResponse {
         this.email = email;
         this.role = role;
         this.hospitalId = hospitalId;
+        this.profileImageUrl = profileImageUrl;
     }
 
 
@@ -54,4 +57,5 @@ public class AuthResponse {
     }
 
     public Long getHospitalId() { return hospitalId; }
+    public String getProfileImageUrl() { return profileImageUrl; }
 }

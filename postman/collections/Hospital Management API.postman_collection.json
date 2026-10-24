@@ -15,6 +15,48 @@
   ],
   "item": [
     {
+      "name": "Profile Photo",
+      "description": "Use profileToken, saved by any Authentication login request, to read or manage the signed-in user's photo.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{profileToken}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/me"
+          }
+        },
+        {
+          "name": "Upload or Replace My Photo",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": null }
+              ]
+            },
+            "url": "{{baseUrl}}/api/users/me/photo"
+          }
+        },
+        {
+          "name": "Remove My Photo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/me/photo"
+          }
+        }
+      ]
+    },
+    {
       "name": "User Directory",
       "description": "Lists users in the selected hospital only. Set userDirectoryToken to a valid bearer token for that hospital. Password hashes are never returned.",
       "auth": {
@@ -41,7 +83,7 @@
                   "    const users = pm.response.json();",
                   "    pm.expect(users).to.be.an('array');",
                   "    users.forEach(function (user) {",
-                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
+                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'createdAt', 'updatedAt');",
                   "        pm.expect(user).not.to.have.property('passwordHash');",
                   "    });",
                   "});"
@@ -68,7 +110,7 @@
                   "    pm.response.to.have.status(200);",
                   "    const user = pm.response.json();",
                   "    pm.expect(String(user.id)).to.eql(String(pm.environment.get('userId')));",
-                  "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'createdAt', 'updatedAt');",
+                  "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'createdAt', 'updatedAt');",
                   "    pm.expect(user).not.to.have.property('passwordHash');",
                   "});"
                 ]
@@ -200,6 +242,7 @@
                   "    pm.expect(body.token).to.be.a('string').and.not.empty;",
                   "    pm.expect(['ADMIN', 'PLATFORM_ADMIN']).to.include(body.role);",
                   "    pm.environment.set('adminToken', body.token);",
+                  "    pm.environment.set('profileToken', body.token);",
                   "    pm.environment.set('adminId', body.userId);",
                   "});"
                 ]
@@ -230,6 +273,36 @@
           }
         },
         {
+          "name": "Logout",
+          "description": "Revokes the bearer token saved as profileToken by the last successful login request.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout revokes the current bearer token', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().success).to.eql(true);",
+                  "    pm.expect(pm.response.json().message).to.eql('Logged out successfully.');",
+                  "    ['profileToken', 'adminToken', 'userToken', 'nurseToken', 'doctorToken', 'medicalStaffToken', 'userDirectoryToken'].forEach(function (key) { pm.environment.unset(key); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{profileToken}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/logout"
+          }
+        },        {
           "name": "Patient Login",
           "description": "Logs in as the patient created by Admin > User Management and saves userToken/userId.",
           "event": [
@@ -244,6 +317,7 @@
                   "    pm.expect(body.role).to.eql('PATIENT');",
                   "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('hospitalId')));",
                   "    pm.environment.set('userToken', body.token);",
+                  "    pm.environment.set('profileToken', body.token);",
                   "    pm.environment.set('userDirectoryToken', body.token);",
                   "    pm.environment.set('userId', body.userId);",
                   "    pm.environment.set('patientId', body.userId);",
@@ -289,6 +363,7 @@
                   "    const body = pm.response.json();",
                   "    pm.expect(body.role).to.eql('NURSE');",
                   "    pm.environment.set('nurseToken', body.token);",
+                  "    pm.environment.set('profileToken', body.token);",
                   "    pm.environment.set('userDirectoryToken', body.token);",
                   "    pm.environment.set('nurseId', body.userId);",
                   "});"
@@ -333,6 +408,7 @@
                   "    const body = pm.response.json();",
                   "    pm.expect(body.role).to.eql('DOCTOR');",
                   "    pm.environment.set('doctorToken', body.token);",
+                  "    pm.environment.set('profileToken', body.token);",
                   "    pm.environment.set('userDirectoryToken', body.token);",
                   "    pm.environment.set('doctorId', body.userId);",
                   "});"
@@ -377,6 +453,7 @@
                   "    const body = pm.response.json();",
                   "    pm.expect(body.role).to.eql('MEDICAL_STAFF');",
                   "    pm.environment.set('medicalStaffToken', body.token);",
+                  "    pm.environment.set('profileToken', body.token);",
                   "    pm.environment.set('medicalStaffId', body.userId);",
                   "    pm.environment.set('userDirectoryToken', body.token);",
                   "});"
@@ -420,6 +497,7 @@
                   "    pm.expect(body.role).to.eql('ADMIN');",
                   "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('newHospitalId')));",
                   "    pm.environment.set('adminToken', body.token);",
+                  "    pm.environment.set('profileToken', body.token);",
                   "    pm.environment.set('userDirectoryToken', body.token);",
                   "    pm.environment.set('adminId', body.userId);",
                   "    pm.environment.set('hospitalId', body.hospitalId);",
@@ -540,7 +618,10 @@
                       "if (!pm.environment.get('newUserEmail')) pm.environment.set('newUserEmail', 'postman.patient.' + Date.now() + '@example.com');",
                       "if (!pm.environment.get('newUserPassword')) pm.environment.set('newUserPassword', 'PostmanPatientPass123!');",
                       "if (!pm.environment.get('newUserName')) pm.environment.set('newUserName', 'Postman Test Patient');",
-                      "if (!pm.environment.get('newUserRole')) pm.environment.set('newUserRole', 'PATIENT');"
+                      "if (!pm.environment.get('newUserRole')) pm.environment.set('newUserRole', 'PATIENT');",
+                      "if (!pm.environment.get('newUserContactNumber')) pm.environment.set('newUserContactNumber', '+1-555-0100');",
+                      "if (!pm.environment.get('newUserGender')) pm.environment.set('newUserGender', 'FEMALE');",
+                      "if (!pm.environment.get('newUserDateOfBirth')) pm.environment.set('newUserDateOfBirth', '1990-01-01');"
                     ]
                   }
                 },
@@ -554,6 +635,9 @@
                       "    const body = pm.response.json();",
                       "    pm.expect(body.role).to.eql(pm.environment.get('newUserRole') || 'PATIENT');",
                       "    pm.expect(body.enabled).to.eql(true);",
+                      "    pm.expect(body.contactNumber).to.eql(pm.environment.get('newUserContactNumber'));",
+                      "    pm.expect(body.gender).to.eql(pm.environment.get('newUserGender'));",
+                      "    pm.expect(body.dateOfBirth).to.eql(pm.environment.get('newUserDateOfBirth'));",
                       "    pm.expect(String(body.hospitalId)).to.eql(String(pm.environment.get('hospitalId')));",
                       "    pm.environment.set('userId', body.id);",
                       "    if (body.role === 'PATIENT') pm.environment.set('patientId', body.id);",
@@ -572,7 +656,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\"\n}",
+                  "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\",\n  \"contactNumber\": \"{{newUserContactNumber}}\",\n  \"gender\": \"{{newUserGender}}\",\n  \"dateOfBirth\": \"{{newUserDateOfBirth}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -818,7 +902,7 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });"
+                      "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });",
                     ]
                   }
                 }
@@ -1037,7 +1121,7 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });"
+                      "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });",
                     ]
                   }
                 }
