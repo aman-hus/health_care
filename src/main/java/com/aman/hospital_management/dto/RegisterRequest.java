@@ -44,4 +44,7 @@ public class RegisterRequest {
     @NotNull(message = "Role is required")
     private Role role;
 
+    @Size(max = 100, message = "Specialization must be at most 100 characters")
+    private String specialization;
+
 }

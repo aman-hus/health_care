@@ -58,7 +58,13 @@ public class AuthService {
         AppUser savedUser = userRepository.findByEmail(request.getEmail()).orElseGet(() ->
                 userRepository.save(new AppUser(request.getName(), request.getEmail(),
                         passwordEncoder.encode(request.getPassword()), request.getRole(),
-                        request.getContactNumber(), request.getGender(), request.getDateOfBirth())));
+                        request.getContactNumber(), request.getGender(), request.getDateOfBirth(),
+                        request.getSpecialization())));
+        // Specialization is optional; an omitted value must not clear an existing user's value.
+        if (request.getSpecialization() != null && !request.getSpecialization().isBlank()) {
+            savedUser.setSpecialization(request.getSpecialization().trim());
+            savedUser = userRepository.save(savedUser);
+        }
         if (membershipRepository.existsByHospital_IdAndUser_IdAndEnabledTrue(hospital.getId(), savedUser.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User is already a member of this hospital.");
         }
@@ -72,7 +78,8 @@ public class AuthService {
                 request.getRole(),
                 savedUser.isEnabled(),
                 hospital.getId(),
-                savedUser.getContactNumber(), savedUser.getGender(), savedUser.getDateOfBirth()
+                savedUser.getContactNumber(), savedUser.getGender(), savedUser.getDateOfBirth(),
+                savedUser.getSpecialization()
         );
     }
 
@@ -100,7 +107,8 @@ public class AuthService {
         return new UserResponse(
                 savedAdmin.getId(), savedAdmin.getName(), savedAdmin.getEmail(),
                 savedAdmin.getRole(), savedAdmin.isEnabled(), null,
-                savedAdmin.getContactNumber(), savedAdmin.getGender(), savedAdmin.getDateOfBirth()
+                savedAdmin.getContactNumber(), savedAdmin.getGender(), savedAdmin.getDateOfBirth(),
+                savedAdmin.getSpecialization()
         );
     }
 

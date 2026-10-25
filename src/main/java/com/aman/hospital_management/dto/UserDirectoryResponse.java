@@ -12,6 +12,7 @@ public record UserDirectoryResponse(
         Role role,
         boolean enabled,
         String profileImageUrl,
+        String specialization,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
