@@ -64,6 +64,9 @@ public class AppUser {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(length = 100)
+    private String specialization;
+
 
     // JPA requires a no-argument constructor
     public AppUser() {
@@ -85,11 +88,12 @@ public class AppUser {
     }
 
     public AppUser(String name, String email, String passwordHash, Role role,
-                   String contactNumber, Gender gender, LocalDate dateOfBirth) {
+                   String contactNumber, Gender gender, LocalDate dateOfBirth, String specialization) {
         this(name, email, passwordHash, role);
         this.contactNumber = contactNumber;
         this.gender = gender;
         this.dateOfBirth = dateOfBirth;
+        this.specialization = specialization;
     }
 
 
@@ -135,6 +139,8 @@ public class AppUser {
     public void setGender(Gender gender) { this.gender = gender; }
     public LocalDate getDateOfBirth() { return dateOfBirth; }
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
     public String getProfileImageUrl() { return profileImageUrl; }
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
     public String getProfileImagePublicId() { return profileImagePublicId; }

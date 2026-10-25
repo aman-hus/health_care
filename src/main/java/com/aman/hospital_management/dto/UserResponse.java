@@ -15,6 +15,7 @@ public class UserResponse {
     private String contactNumber;
     private Gender gender;
     private LocalDate dateOfBirth;
+    private String specialization;
 
 
     public UserResponse() {
@@ -29,11 +30,17 @@ public class UserResponse {
             boolean enabled,
             Long hospitalId
     ) {
-        this(id, name, email, role, enabled, hospitalId, null, null, null);
+        this(id, name, email, role, enabled, hospitalId, null, null, null, null);
     }
 
     public UserResponse(Long id, String name, String email, Role role, boolean enabled,
                         Long hospitalId, String contactNumber, Gender gender, LocalDate dateOfBirth) {
+        this(id, name, email, role, enabled, hospitalId, contactNumber, gender, dateOfBirth, null);
+    }
+
+    public UserResponse(Long id, String name, String email, Role role, boolean enabled,
+                        Long hospitalId, String contactNumber, Gender gender, LocalDate dateOfBirth,
+                        String specialization) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -43,6 +50,7 @@ public class UserResponse {
         this.contactNumber = contactNumber;
         this.gender = gender;
         this.dateOfBirth = dateOfBirth;
+        this.specialization = specialization;
     }
 
 
@@ -99,4 +107,6 @@ public class UserResponse {
     public void setGender(Gender gender) { this.gender = gender; }
     public LocalDate getDateOfBirth() { return dateOfBirth; }
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getSpecialization() { return specialization; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
 }
