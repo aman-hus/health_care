@@ -13,7 +13,6 @@ public record UserDirectoryResponse(
         boolean enabled,
         String profileImageUrl,
         String specialization,
-        String mrnNumber,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
