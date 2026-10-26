@@ -6,5 +6,6 @@ public record HospitalProvisionResponse(
         String code,
         Long adminId,
         String adminName,
-        String adminEmail
+        String adminEmail,
+        String adminMrnNumber
 ) { }

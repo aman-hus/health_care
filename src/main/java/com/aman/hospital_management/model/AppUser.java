@@ -67,6 +67,9 @@ public class AppUser {
     @Column(length = 100)
     private String specialization;
 
+    @Column(name = "mrn_number", length = 100, unique = true)
+    private String mrnNumber;
+
 
     // JPA requires a no-argument constructor
     public AppUser() {
@@ -141,6 +144,8 @@ public class AppUser {
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getSpecialization() { return specialization; }
     public void setSpecialization(String specialization) { this.specialization = specialization; }
+    public String getMrnNumber() { return mrnNumber; }
+    public void setMrnNumber(String mrnNumber) { this.mrnNumber = mrnNumber; }
     public String getProfileImageUrl() { return profileImageUrl; }
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
     public String getProfileImagePublicId() { return profileImagePublicId; }
