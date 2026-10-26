@@ -16,7 +16,6 @@ public class UserResponse {
     private Gender gender;
     private LocalDate dateOfBirth;
     private String specialization;
-    private String mrnNumber;
 
 
     public UserResponse() {
@@ -31,24 +30,17 @@ public class UserResponse {
             boolean enabled,
             Long hospitalId
     ) {
-        this(id, name, email, role, enabled, hospitalId, null, null, null, null, null);
+        this(id, name, email, role, enabled, hospitalId, null, null, null, null);
     }
 
     public UserResponse(Long id, String name, String email, Role role, boolean enabled,
                         Long hospitalId, String contactNumber, Gender gender, LocalDate dateOfBirth) {
-        this(id, name, email, role, enabled, hospitalId, contactNumber, gender, dateOfBirth, null, null);
+        this(id, name, email, role, enabled, hospitalId, contactNumber, gender, dateOfBirth, null);
     }
 
     public UserResponse(Long id, String name, String email, Role role, boolean enabled,
                         Long hospitalId, String contactNumber, Gender gender, LocalDate dateOfBirth,
                         String specialization) {
-        this(id, name, email, role, enabled, hospitalId, contactNumber, gender, dateOfBirth,
-                specialization, null);
-    }
-
-    public UserResponse(Long id, String name, String email, Role role, boolean enabled,
-                        Long hospitalId, String contactNumber, Gender gender, LocalDate dateOfBirth,
-                        String specialization, String mrnNumber) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -59,7 +51,6 @@ public class UserResponse {
         this.gender = gender;
         this.dateOfBirth = dateOfBirth;
         this.specialization = specialization;
-        this.mrnNumber = mrnNumber;
     }
 
 
@@ -118,6 +109,4 @@ public class UserResponse {
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getSpecialization() { return specialization; }
     public void setSpecialization(String specialization) { this.specialization = specialization; }
-    public String getMrnNumber() { return mrnNumber; }
-    public void setMrnNumber(String mrnNumber) { this.mrnNumber = mrnNumber; }
 }

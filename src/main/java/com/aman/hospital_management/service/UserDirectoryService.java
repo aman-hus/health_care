@@ -25,7 +25,7 @@ public class UserDirectoryService {
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return new MyProfileResponse(user.getId(), user.getName(), user.getEmail(),
-                user.getProfileImageUrl(), user.getSpecialization(), user.getMrnNumber());
+                user.getProfileImageUrl(), user.getSpecialization());
     }
 
     @Transactional(readOnly = true)
@@ -35,7 +35,6 @@ public class UserDirectoryService {
                     var user = membership.getUser();
                     return new UserDirectoryResponse(user.getId(), user.getName(), user.getEmail(), membership.getRole(),
                             user.isEnabled(), user.getProfileImageUrl(), user.getSpecialization(),
-                            user.getMrnNumber(),
                             user.getCreatedAt(), user.getUpdatedAt());
                 })
                 .toList();
@@ -56,7 +55,6 @@ public class UserDirectoryService {
                 user.isEnabled(),
                 user.getProfileImageUrl(),
                 user.getSpecialization(),
-                user.getMrnNumber(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
