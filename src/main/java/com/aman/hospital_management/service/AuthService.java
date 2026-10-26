@@ -42,6 +42,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final HospitalRepository hospitalRepository;
     private final HospitalMembershipRepository membershipRepository;
+    private final MrnNumberGenerator mrnNumberGenerator;
 
 
 
@@ -60,6 +61,10 @@ public class AuthService {
                         passwordEncoder.encode(request.getPassword()), request.getRole(),
                         request.getContactNumber(), request.getGender(), request.getDateOfBirth(),
                         request.getSpecialization())));
+        if (savedUser.getMrnNumber() == null) {
+            savedUser.setMrnNumber(mrnNumberGenerator.generate(hospital, savedUser.getId()));
+            savedUser = userRepository.save(savedUser);
+        }
         // Specialization is optional; an omitted value must not clear an existing user's value.
         if (request.getSpecialization() != null && !request.getSpecialization().isBlank()) {
             savedUser.setSpecialization(request.getSpecialization().trim());
@@ -79,7 +84,7 @@ public class AuthService {
                 savedUser.isEnabled(),
                 hospital.getId(),
                 savedUser.getContactNumber(), savedUser.getGender(), savedUser.getDateOfBirth(),
-                savedUser.getSpecialization()
+                savedUser.getSpecialization(), savedUser.getMrnNumber()
         );
     }
 
@@ -108,7 +113,7 @@ public class AuthService {
                 savedAdmin.getId(), savedAdmin.getName(), savedAdmin.getEmail(),
                 savedAdmin.getRole(), savedAdmin.isEnabled(), null,
                 savedAdmin.getContactNumber(), savedAdmin.getGender(), savedAdmin.getDateOfBirth(),
-                savedAdmin.getSpecialization()
+                savedAdmin.getSpecialization(), savedAdmin.getMrnNumber()
         );
     }
 
@@ -140,7 +145,7 @@ public class AuthService {
         if (user.getRole() == Role.PLATFORM_ADMIN && memberships.isEmpty() && request.getHospitalId() == null) {
             String token = jwtService.generateToken(userDetails);
             return new AuthResponse(token, user.getId(), user.getName(), user.getEmail(),
-                    Role.PLATFORM_ADMIN.name(), null, user.getProfileImageUrl());
+                    Role.PLATFORM_ADMIN.name(), null, user.getProfileImageUrl(), user.getMrnNumber());
         }
         var selected = request.getHospitalId() == null
                 ? (memberships.size() == 1 ? memberships.get(0) : null)
@@ -164,7 +169,8 @@ public class AuthService {
                 user.getEmail(),
                 selected.getRole().name(),
                 selected.getHospital().getId(),
-                user.getProfileImageUrl()
+                user.getProfileImageUrl(),
+                user.getMrnNumber()
         );
     }
 }
