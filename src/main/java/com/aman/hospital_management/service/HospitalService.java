@@ -23,6 +23,7 @@ public class HospitalService {
     private final HospitalMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MrnNumberGenerator mrnNumberGenerator;
 
     @Transactional
     public HospitalProvisionResponse create(CreateHospitalRequest request) {
@@ -41,10 +42,12 @@ public class HospitalService {
                 request.adminEmail().trim(),
                 passwordEncoder.encode(request.adminPassword()),
                 com.aman.hospital_management.model.Role.ADMIN));
+        hospitalAdmin.setMrnNumber(mrnNumberGenerator.generate(hospital, hospitalAdmin.getId()));
+        hospitalAdmin = userRepository.save(hospitalAdmin);
         membershipRepository.save(new HospitalMembership(hospital, hospitalAdmin, com.aman.hospital_management.model.Role.ADMIN));
 
         return new HospitalProvisionResponse(hospital.getId(), hospital.getName(), hospital.getCode(),
-                hospitalAdmin.getId(), hospitalAdmin.getName(), hospitalAdmin.getEmail());
+                hospitalAdmin.getId(), hospitalAdmin.getName(), hospitalAdmin.getEmail(), hospitalAdmin.getMrnNumber());
     }
 
     @Transactional(readOnly = true)
