@@ -15,6 +15,32 @@
   ],
   "item": [
     {
+      "name": "File Upload",
+      "description": "Uploads a profile image to Cloudinary. Requires a patient bearer token. Accepted formats: JPEG, PNG, WEBP, and GIF; maximum size: 5 MB.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{userToken}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Upload Image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": null }
+              ]
+            },
+            "url": "{{baseUrl}}/api/file/upload"
+          }
+        }
+      ]
+    },
+    {
       "name": "Profile Photo",
       "description": "Use profileToken, saved by any Authentication login request, to read or manage the signed-in user's photo.",
       "auth": {
@@ -83,7 +109,8 @@
                   "    const users = pm.response.json();",
                   "    pm.expect(users).to.be.an('array');",
                   "    users.forEach(function (user) {",
-                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'createdAt', 'updatedAt');",
+                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'specialization', 'mrnNumber', 'createdAt', 'updatedAt');",
+                  "        pm.expect(user.mrnNumber).to.be.a('string').and.not.empty;",
                   "        pm.expect(user).not.to.have.property('passwordHash');",
                   "    });",
                   "});"
@@ -110,7 +137,8 @@
                   "    pm.response.to.have.status(200);",
                   "    const user = pm.response.json();",
                   "    pm.expect(String(user.id)).to.eql(String(pm.environment.get('userId')));",
-                  "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'createdAt', 'updatedAt');",
+                  "    pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'specialization', 'mrnNumber', 'createdAt', 'updatedAt');",
+                  "    pm.expect(user.mrnNumber).to.be.a('string').and.not.empty;",
                   "    pm.expect(user).not.to.have.property('passwordHash');",
                   "});"
                 ]
@@ -902,7 +930,7 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });",
+                      "pm.test('Patient deletes own appointment', function () { pm.response.to.have.status(204); });"
                     ]
                   }
                 }
@@ -1121,7 +1149,7 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });",
+                      "pm.test('Doctor deletes assigned appointment', function () { pm.response.to.have.status(204); });"
                     ]
                   }
                 }

@@ -34,7 +34,8 @@ public class UserDirectoryService {
                 .map(membership -> {
                     var user = membership.getUser();
                     return new UserDirectoryResponse(user.getId(), user.getName(), user.getEmail(), membership.getRole(),
-                            user.isEnabled(), user.getProfileImageUrl(), user.getSpecialization(),
+                            user.isEnabled(), user.getContactNumber(), user.getGender(), user.getDateOfBirth(),
+                            user.getProfileImageUrl(), user.getSpecialization(),
                             user.getMrnNumber(),
                             user.getCreatedAt(), user.getUpdatedAt());
                 })
@@ -54,6 +55,9 @@ public class UserDirectoryService {
                 user.getEmail(),
                 membership.getRole(),
                 user.isEnabled(),
+                user.getContactNumber(),
+                user.getGender(),
+                user.getDateOfBirth(),
                 user.getProfileImageUrl(),
                 user.getSpecialization(),
                 user.getMrnNumber(),
