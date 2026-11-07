@@ -20,7 +20,11 @@
       "auth": {
         "type": "bearer",
         "bearer": [
-          { "key": "token", "value": "{{userToken}}", "type": "string" }
+          {
+            "key": "token",
+            "value": "{{userToken}}",
+            "type": "string"
+          }
         ]
       },
       "item": [
@@ -32,7 +36,11 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "image", "type": "file", "src": null }
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": null
+                }
               ]
             },
             "url": "{{baseUrl}}/api/file/upload"
@@ -46,7 +54,11 @@
       "auth": {
         "type": "bearer",
         "bearer": [
-          { "key": "token", "value": "{{profileToken}}", "type": "string" }
+          {
+            "key": "token",
+            "value": "{{profileToken}}",
+            "type": "string"
+          }
         ]
       },
       "item": [
@@ -66,7 +78,11 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "image", "type": "file", "src": null }
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": null
+                }
               ]
             },
             "url": "{{baseUrl}}/api/users/me/photo"
@@ -109,7 +125,7 @@
                   "    const users = pm.response.json();",
                   "    pm.expect(users).to.be.an('array');",
                   "    users.forEach(function (user) {",
-                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'profileImageUrl', 'specialization', 'mrnNumber', 'createdAt', 'updatedAt');",
+                  "        pm.expect(user).to.have.all.keys('id', 'name', 'email', 'role', 'enabled', 'contactNumber', 'gender', 'dateOfBirth', 'profileImageUrl', 'specialization', 'mrnNumber', 'createdAt', 'updatedAt');",
                   "        pm.expect(user.mrnNumber).to.be.a('string').and.not.empty;",
                   "        pm.expect(user).not.to.have.property('passwordHash');",
                   "    });",
@@ -323,14 +339,19 @@
             "auth": {
               "type": "bearer",
               "bearer": [
-                { "key": "token", "value": "{{profileToken}}", "type": "string" }
+                {
+                  "key": "token",
+                  "value": "{{profileToken}}",
+                  "type": "string"
+                }
               ]
             },
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/api/auth/logout"
           }
-        },        {
+        },
+        {
           "name": "Patient Login",
           "description": "Logs in as the patient created by Admin > User Management and saves userToken/userId.",
           "event": [
@@ -684,7 +705,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\",\n  \"contactNumber\": \"{{newUserContactNumber}}\",\n  \"gender\": \"{{newUserGender}}\",\n  \"dateOfBirth\": \"{{newUserDateOfBirth}}\"\n}",
+                  "raw": "{\n  \"name\": \"{{newUserName}}\",\n  \"email\": \"{{newUserEmail}}\",\n  \"password\": \"{{newUserPassword}}\",\n  \"role\": \"{{newUserRole}}\",\n  \"contactNumber\": \"{{newUserContactNumber}}\",\n  \"gender\": \"{{newUserGender}}\",\n  \"dateOfBirth\": \"{{newUserDateOfBirth}}\",\n  \"specialization\": \"{{newUserSpecialization}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -693,7 +714,7 @@
                 },
                 "url": "{{baseUrl}}/api/admin/users"
               },
-              "description": "Creates the user in the hospital selected by the bearer token. Do not send hospitalId; the response includes it."
+              "description": "Creates the user in the hospital selected by the bearer token. Do not send hospitalId; the response includes it. Specialization is optional and used for doctor accounts."
             }
           ]
         },
@@ -824,7 +845,7 @@
     },
     {
       "name": "Appointments",
-      "description": "Patients book for themselves; admins book for patients. New bookings are PENDING until the assigned doctor accepts (SCHEDULED) or rejects (REJECTED). Patients and assigned doctors can reschedule pending or scheduled appointments. Nurses cannot book appointments.",
+      "description": "Availability workflow: doctor sets a two-month schedule and working hours; patients check the date and list open slots; booking uses an open slot and creates a PENDING appointment for the doctor's later decision.",
       "item": [
         {
           "name": "Patient",
@@ -844,17 +865,6 @@
               "name": "Book Appointment For Myself",
               "event": [
                 {
-                  "listen": "prerequest",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                      "appointmentAt.setHours(10, 0, 0, 0);",
-                      "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-                    ]
-                  }
-                },
-                {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
@@ -866,6 +876,16 @@
                       "    pm.expect(body.status).to.eql('PENDING');",
                       "    pm.environment.set('appointmentId', body.id);",
                       "});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const appointmentAt = pm.environment.get('appointmentAt');",
+                      "if (!appointmentAt) { throw new Error('Run Get Open Appointment Slots first to select a free slot.'); }"
                     ]
                   }
                 }
@@ -888,7 +908,8 @@
                   }
                 },
                 "url": "{{baseUrl}}/api/appointments"
-              }
+              },
+              "description": "Books using appointmentAt saved by Get Open Appointment Slots. The doctor must be available on that date, and pending or scheduled appointments block overlapping slots."
             },
             {
               "name": "Get My Appointments",
@@ -900,7 +921,7 @@
             },
             {
               "name": "Reschedule My Appointment",
-              "description": "Updates the appointment time for the signed-in patient. Set the appointmentAt environment variable to the desired future date before sending.",
+              "description": "Reschedules to an open appointment slot. First run the doctor's availability slot lookup for the target date; it saves the selected slot start in appointmentAt.",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -940,6 +961,49 @@
                 "header": [],
                 "url": "{{baseUrl}}/api/appointments/{{appointmentId}}"
               }
+            },
+            {
+              "name": "Check Doctor Availability By Date",
+              "description": "Checks whether the selected doctor marked this date available.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/availability?doctorId={{doctorId}}&date={{scheduleStartDate}}"
+              }
+            },
+            {
+              "name": "List Available Doctors By Date",
+              "description": "Lists doctors in this hospital who marked the selected date available.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/availability/doctors?date={{scheduleStartDate}}"
+              }
+            },
+            {
+              "name": "Get Open Appointment Slots",
+              "description": "Returns open 20-minute slots separated by 10-minute breaks. Saves the first slot start as appointmentAt for booking.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/availability/slots?doctorId={{doctorId}}&date={{scheduleStartDate}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Open slots are returned', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const slots = pm.response.json();",
+                      "    pm.expect(slots.length).to.be.greaterThan(0);",
+                      "    pm.environment.set('appointmentAt', slots[0].startAt);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },
@@ -1103,7 +1167,7 @@
             },
             {
               "name": "Reschedule Assigned Appointment",
-              "description": "Updates the time for a pending or scheduled appointment assigned to the signed-in doctor. Set the appointmentAt environment variable to the desired future date before sending.",
+              "description": "Reschedules to an open appointment slot. First run the doctor's availability slot lookup for the target date; it saves the selected slot start in appointmentAt.",
               "event": [
                 {
                   "listen": "test",
@@ -1159,6 +1223,52 @@
                 "header": [],
                 "url": "{{baseUrl}}/api/appointments/{{appointmentId}}"
               }
+            },
+            {
+              "name": "Set Availability Schedule (up to 2 months)",
+              "description": "Doctor sets recurring available weekdays, working hours, and date overrides for a range up to two months. Set scheduleStartDate and scheduleEndDate in the environment.",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"startDate\": \"{{scheduleStartDate}}\",\n  \"endDate\": \"{{scheduleEndDate}}\",\n  \"workingStartTime\": \"09:00\",\n  \"workingEndTime\": \"15:00\",\n  \"availableDays\": [\n    \"MONDAY\",\n    \"WEDNESDAY\",\n    \"FRIDAY\"\n  ],\n  \"availableDates\": [],\n  \"unavailableDates\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/users/me/availability/schedule"
+              }
+            },
+            {
+              "name": "Update Availability For One Date",
+              "description": "Mark the signed-in doctor available or unavailable on a date. Optional working hours define appointment slots for that date.",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"date\": \"{{scheduleStartDate}}\",\n  \"available\": true,\n  \"workingStartTime\": \"09:00\",\n  \"workingEndTime\": \"15:00\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/users/me/availability"
+              }
             }
           ]
         },
@@ -1180,17 +1290,6 @@
               "name": "Book Appointment For Patient",
               "event": [
                 {
-                  "listen": "prerequest",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "const appointmentAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);",
-                      "appointmentAt.setHours(12, 0, 0, 0);",
-                      "pm.environment.set('appointmentAt', appointmentAt.toISOString().slice(0, 19));"
-                    ]
-                  }
-                },
-                {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
@@ -1200,6 +1299,16 @@
                       "    const body = pm.response.json();",
                       "    pm.environment.set('appointmentId', body.id);",
                       "});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const appointmentAt = pm.environment.get('appointmentAt');",
+                      "if (!appointmentAt) { throw new Error('Run Get Open Appointment Slots first to select a free slot.'); }"
                     ]
                   }
                 }
@@ -1222,7 +1331,8 @@
                   }
                 },
                 "url": "{{baseUrl}}/api/appointments"
-              }
+              },
+              "description": "Books using appointmentAt saved by Get Open Appointment Slots. The doctor must be available on that date, and pending or scheduled appointments block overlapping slots."
             },
             {
               "name": "Get All Appointments",

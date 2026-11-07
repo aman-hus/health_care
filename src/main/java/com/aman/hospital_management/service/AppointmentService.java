@@ -2,6 +2,9 @@ package com.aman.hospital_management.service;
 
 import com.aman.hospital_management.dto.AppointmentRequest;
 import com.aman.hospital_management.dto.AppointmentResponse;
+import com.aman.hospital_management.dto.DoctorDateAvailabilityResponse;
+import com.aman.hospital_management.dto.AvailableDoctorResponse;
+import com.aman.hospital_management.dto.DoctorTimeSlotResponse;
 import com.aman.hospital_management.model.AppUser;
 import com.aman.hospital_management.model.Appointment;
 import com.aman.hospital_management.model.AppointmentStatus;
@@ -10,6 +13,7 @@ import com.aman.hospital_management.repository.AppointmentRepository;
 import com.aman.hospital_management.repository.UserRepository;
 import com.aman.hospital_management.repository.HospitalRepository;
 import com.aman.hospital_management.repository.HospitalMembershipRepository;
+import com.aman.hospital_management.repository.DoctorAvailabilityRepository;
 import com.aman.hospital_management.security.HospitalContext;
 import com.aman.hospital_management.model.Hospital;
 import lombok.RequiredArgsConstructor;
@@ -21,15 +25,20 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class AppointmentService {
+    private static final int APPOINTMENT_DURATION_MINUTES = 20;
+    private static final int BREAK_BETWEEN_APPOINTMENTS_MINUTES = 10;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
     private final HospitalRepository hospitalRepository;
     private final HospitalMembershipRepository membershipRepository;
+    private final DoctorAvailabilityRepository doctorAvailabilityRepository;
 
     @Transactional
     public AppointmentResponse book(String email, Role callerRole, AppointmentRequest request) {
@@ -57,6 +66,7 @@ public class AppointmentService {
         }
 
         AppUser doctor = userById(request.doctorId(), Role.DOCTOR);
+        ensureSlotAvailable(doctor, request.appointmentAt());
         AppUser nurse = request.nurseId() == null ? null : userById(request.nurseId(), Role.NURSE);
         Long hospitalId = HospitalContext.requireHospitalId();
         ensureMember(hospitalId, patient);
@@ -67,6 +77,68 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.save(new Appointment(
                 hospital, patient, doctor, nurse, request.appointmentAt(), request.reason()));
         return AppointmentResponse.from(appointment);
+    }
+
+    @Transactional(readOnly = true)
+    public DoctorDateAvailabilityResponse checkAvailability(Long doctorId, LocalDate date) {
+        if (date == null || date.isBefore(LocalDate.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Availability date must be today or in the future.");
+        }
+        userById(doctorId, Role.DOCTOR);
+        boolean available = isDoctorAvailableOnDate(doctorId, date);
+        return new DoctorDateAvailabilityResponse(doctorId, date, available,
+                available ? "Doctor is available on this date."
+                        : "Doctor has not marked this date as available.");
+    }
+
+    @Transactional(readOnly = true)
+    public List<AvailableDoctorResponse> findAvailableDoctors(LocalDate date) {
+        if (date == null || date.isBefore(LocalDate.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Availability date must be today or in the future.");
+        }
+        Long hospitalId = HospitalContext.requireHospitalId();
+        return doctorAvailabilityRepository.findByHospital_IdAndDateAndAvailableTrue(hospitalId, date).stream()
+                .map(availability -> availability.getDoctor())
+                .filter(AppUser::isEnabled)
+                .filter(doctor -> membershipRepository.findByHospital_IdAndUser_IdAndEnabledTrue(hospitalId, doctor.getId())
+                        .map(membership -> membership.getRole() == Role.DOCTOR).orElse(false))
+                .map(doctor -> new AvailableDoctorResponse(doctor.getId(), doctor.getName(), doctor.getSpecialization(), date))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DoctorTimeSlotResponse> getAvailableSlots(Long doctorId, LocalDate date) {
+        if (date == null || date.isBefore(LocalDate.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Availability date must be today or in the future.");
+        }
+        userById(doctorId, Role.DOCTOR);
+        var availability = doctorAvailabilityRepository.findByHospital_IdAndDoctor_IdAndDate(
+                HospitalContext.requireHospitalId(), doctorId, date).orElse(null);
+        if (availability == null || !availability.isAvailable()
+                || availability.getWorkingStartTime() == null || availability.getWorkingEndTime() == null) {
+            return List.of();
+        }
+
+        LocalDateTime dayStart = date.atStartOfDay();
+        LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
+        List<AppointmentStatus> activeStatuses = List.of(AppointmentStatus.PENDING, AppointmentStatus.SCHEDULED);
+        var booked = appointmentRepository.findByHospital_IdAndDoctor_IdAndAppointmentAtGreaterThanEqualAndAppointmentAtLessThanAndStatusIn(
+                HospitalContext.requireHospitalId(), doctorId, dayStart, dayEnd, activeStatuses);
+        var slots = new ArrayList<DoctorTimeSlotResponse>();
+        int stepMinutes = APPOINTMENT_DURATION_MINUTES + BREAK_BETWEEN_APPOINTMENTS_MINUTES;
+        for (LocalTime start = availability.getWorkingStartTime();
+             !start.plusMinutes(APPOINTMENT_DURATION_MINUTES).isAfter(availability.getWorkingEndTime());
+             start = start.plusMinutes(stepMinutes)) {
+            LocalDateTime slotStart = date.atTime(start);
+            LocalDateTime slotEnd = slotStart.plusMinutes(APPOINTMENT_DURATION_MINUTES);
+            if (slotStart.isAfter(LocalDateTime.now()) && booked.stream().noneMatch(appointment -> {
+                LocalDateTime appointmentEnd = appointment.getAppointmentAt().plusMinutes(APPOINTMENT_DURATION_MINUTES);
+                return slotStart.isBefore(appointmentEnd) && appointment.getAppointmentAt().isBefore(slotEnd);
+            })) {
+                slots.add(new DoctorTimeSlotResponse(slotStart, slotEnd));
+            }
+        }
+        return slots;
     }
 
     @Transactional(readOnly = true)
@@ -145,9 +217,53 @@ public class AppointmentService {
         if (appointment.getStatus() == AppointmentStatus.REJECTED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A rejected appointment cannot be rescheduled.");
         }
+        ensureSlotAvailable(appointment.getDoctor(), appointmentAt, appointment.getId());
         appointment.reschedule(appointmentAt);
         Appointment updatedAppointment = appointmentRepository.saveAndFlush(appointment);
         return AppointmentResponse.from(updatedAppointment);
+    }
+
+    private void ensureSlotAvailable(AppUser doctor, LocalDateTime appointmentAt) {
+        ensureSlotAvailable(doctor, appointmentAt, null);
+    }
+
+    private void ensureSlotAvailable(AppUser doctor, LocalDateTime appointmentAt, Long ignoredAppointmentId) {
+        var availability = doctorAvailabilityRepository.findByHospital_IdAndDoctor_IdAndDate(
+                HospitalContext.requireHospitalId(), doctor.getId(), appointmentAt.toLocalDate()).orElse(null);
+        if (availability == null || !availability.isAvailable())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This doctor is not marked available on this date.");
+        if (availability.getWorkingStartTime() == null || availability.getWorkingEndTime() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This doctor's working hours are not configured for this date.");
+        }
+        boolean isSlotStart = false;
+        for (LocalTime start = availability.getWorkingStartTime();
+             !start.plusMinutes(APPOINTMENT_DURATION_MINUTES).isAfter(availability.getWorkingEndTime());
+             start = start.plusMinutes(APPOINTMENT_DURATION_MINUTES + BREAK_BETWEEN_APPOINTMENTS_MINUTES)) {
+            if (appointmentAt.equals(appointmentAt.toLocalDate().atTime(start))) {
+                isSlotStart = true;
+                break;
+            }
+        }
+        if (!isSlotStart) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Requested time is not a valid appointment slot.");
+        }
+        Long hospitalId = HospitalContext.requireHospitalId();
+        List<AppointmentStatus> activeStatuses = List.of(AppointmentStatus.PENDING, AppointmentStatus.SCHEDULED);
+        LocalDateTime slotEnd = appointmentAt.plusMinutes(APPOINTMENT_DURATION_MINUTES);
+        boolean occupied = appointmentRepository.findByHospital_IdAndDoctor_IdAndAppointmentAtGreaterThanEqualAndAppointmentAtLessThanAndStatusIn(
+                        hospitalId, doctor.getId(), appointmentAt.toLocalDate().atStartOfDay(),
+                        appointmentAt.toLocalDate().plusDays(1).atStartOfDay(), activeStatuses).stream()
+                .filter(appointment -> ignoredAppointmentId == null || !appointment.getId().equals(ignoredAppointmentId))
+                .anyMatch(appointment -> appointmentAt.isBefore(appointment.getAppointmentAt().plusMinutes(APPOINTMENT_DURATION_MINUTES))
+                        && appointment.getAppointmentAt().isBefore(slotEnd));
+        if (occupied) throw new ResponseStatusException(HttpStatus.CONFLICT, "This appointment slot is already booked.");
+    }
+
+    private boolean isDoctorAvailableOnDate(Long doctorId, LocalDate date) {
+        return doctorAvailabilityRepository.findByHospital_IdAndDoctor_IdAndDate(
+                HospitalContext.requireHospitalId(), doctorId, date)
+                .map(com.aman.hospital_management.model.DoctorAvailability::isAvailable)
+                .orElse(false);
     }
 
     private Appointment appointmentForDoctor(String email, Role callerRole, Long appointmentId) {

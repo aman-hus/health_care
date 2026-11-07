@@ -3,6 +3,9 @@ package com.aman.hospital_management.controller;
 import com.aman.hospital_management.dto.AppointmentRequest;
 import com.aman.hospital_management.dto.AppointmentResponse;
 import com.aman.hospital_management.dto.RescheduleAppointmentRequest;
+import com.aman.hospital_management.dto.DoctorDateAvailabilityResponse;
+import com.aman.hospital_management.dto.AvailableDoctorResponse;
+import com.aman.hospital_management.dto.DoctorTimeSlotResponse;
 import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.service.AppointmentService;
 import jakarta.validation.Valid;
@@ -13,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -24,6 +29,22 @@ public class AppointmentController {
     @ResponseStatus(HttpStatus.CREATED)
     public AppointmentResponse book(Authentication authentication, @Valid @RequestBody AppointmentRequest request) {
         return appointmentService.book(authentication.getName(), currentRole(authentication), request);
+    }
+
+    @GetMapping("/availability")
+    public DoctorDateAvailabilityResponse availability(@RequestParam Long doctorId,
+                                                        @RequestParam LocalDate date) {
+        return appointmentService.checkAvailability(doctorId, date);
+    }
+
+    @GetMapping("/availability/doctors")
+    public List<AvailableDoctorResponse> availableDoctors(@RequestParam LocalDate date) {
+        return appointmentService.findAvailableDoctors(date);
+    }
+
+    @GetMapping("/availability/slots")
+    public List<DoctorTimeSlotResponse> availableSlots(@RequestParam Long doctorId, @RequestParam LocalDate date) {
+        return appointmentService.getAvailableSlots(doctorId, date);
     }
 
     @GetMapping("/mine")

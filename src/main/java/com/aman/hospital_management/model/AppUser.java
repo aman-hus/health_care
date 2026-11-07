@@ -67,6 +67,7 @@ public class AppUser {
     @Column(length = 100)
     private String specialization;
 
+
     @Column(name = "mrn_number", length = 100, unique = true)
     private String mrnNumber;
 
