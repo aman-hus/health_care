@@ -5,6 +5,8 @@ import com.aman.hospital_management.dto.AppointmentResponse;
 import com.aman.hospital_management.dto.DoctorDateAvailabilityResponse;
 import com.aman.hospital_management.dto.AvailableDoctorResponse;
 import com.aman.hospital_management.dto.DoctorTimeSlotResponse;
+import com.aman.hospital_management.dto.DoctorAvailabilityDayResponse;
+import com.aman.hospital_management.dto.DoctorAvailabilityPageResponse;
 import com.aman.hospital_management.model.AppUser;
 import com.aman.hospital_management.model.Appointment;
 import com.aman.hospital_management.model.AppointmentStatus;
@@ -28,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -139,6 +142,19 @@ public class AppointmentService {
             }
         }
         return slots;
+    }
+
+    @Transactional(readOnly = true)
+    public DoctorAvailabilityPageResponse getAvailabilityCalendar(Long doctorId, Pageable pageable) {
+        userById(doctorId, Role.DOCTOR);
+        Long hospitalId = HospitalContext.requireHospitalId();
+        var result = doctorAvailabilityRepository.findByHospital_IdAndDoctor_Id(hospitalId, doctorId, pageable);
+        var dates = result.getContent().stream()
+                .map(day -> new DoctorAvailabilityDayResponse(day.getDate(), day.isAvailable(),
+                        day.getWorkingStartTime(), day.getWorkingEndTime()))
+                .toList();
+        return new DoctorAvailabilityPageResponse(doctorId, dates, result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages());
     }
 
     @Transactional(readOnly = true)

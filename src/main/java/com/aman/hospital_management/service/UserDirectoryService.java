@@ -10,6 +10,8 @@ import com.aman.hospital_management.dto.MyProfileResponse;
 import com.aman.hospital_management.dto.DoctorAvailabilityRequest;
 import com.aman.hospital_management.dto.DoctorDateAvailabilityResponse;
 import com.aman.hospital_management.dto.DoctorAvailabilityScheduleRequest;
+import com.aman.hospital_management.dto.DoctorAvailabilityPageResponse;
+import com.aman.hospital_management.dto.DoctorAvailabilityDayResponse;
 import com.aman.hospital_management.security.HospitalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -69,6 +72,25 @@ public class UserDirectoryService {
         doctorAvailabilityRepository.save(availability);
         return new DoctorDateAvailabilityResponse(user.getId(), date, available,
                 available ? "Doctor marked available for this date." : "Doctor marked unavailable for this date.");
+    }
+
+    @Transactional(readOnly = true)
+    public DoctorAvailabilityPageResponse getMyAvailability(String email, Pageable pageable) {
+        var doctor = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Long hospitalId = HospitalContext.requireHospitalId();
+        var membership = membershipRepository.findByHospital_IdAndUser_IdAndEnabledTrue(hospitalId, doctor.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in this hospital."));
+        if (membership.getRole() != com.aman.hospital_management.model.Role.DOCTOR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only doctors can view their own availability.");
+        }
+        var result = doctorAvailabilityRepository.findByHospital_IdAndDoctor_Id(hospitalId, doctor.getId(), pageable);
+        var dates = result.getContent().stream()
+                .map(day -> new DoctorAvailabilityDayResponse(day.getDate(), day.isAvailable(),
+                        day.getWorkingStartTime(), day.getWorkingEndTime()))
+                .toList();
+        return new DoctorAvailabilityPageResponse(doctor.getId(), dates, result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages());
     }
 
     @Transactional

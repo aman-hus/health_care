@@ -848,6 +848,31 @@
       "description": "Availability workflow: doctor sets a two-month schedule and working hours; patients check the date and list open slots; booking uses an open slot and creates a PENDING appointment for the doctor's later decision.",
       "item": [
         {
+          "name": "Availability Lookup (Hospital Users)",
+          "description": "Use the token saved by the most recent login. Any authenticated user with membership in the selected hospital can look up that hospital's doctor availability.",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{profileToken}}",
+                "type": "string"
+              }
+            ]
+          },
+          "item": [
+            {
+              "name": "Get Doctor Availability Calendar (Paginated)",
+              "description": "Returns saved available and explicitly unavailable dates for the doctor, ordered by date. Dates without a saved availability record are not included. page is zero-based; size defaults to 20 and is limited to 100.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/availability/calendar?doctorId={{doctorId}}&page={{availabilityPage}}&size={{availabilityPageSize}}"
+              }
+            }
+          ]
+        },
+        {
           "name": "Patient",
           "description": "Run Authentication > Patient Login first.",
           "auth": {
@@ -1225,6 +1250,15 @@
               }
             },
             {
+              "name": "Get My Availability (Paginated)",
+              "description": "Returns the signed-in doctor's saved available and unavailable dates. No doctorId is needed. page is zero-based; size defaults to 20 and is limited to 100.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/users/me/availability?page={{availabilityPage}}&size={{availabilityPageSize}}"
+              }
+            },
+            {
               "name": "Set Availability Schedule (up to 2 months)",
               "description": "Doctor sets recurring available weekdays, working hours, and date overrides for a range up to two months. Set scheduleStartDate and scheduleEndDate in the environment.",
               "request": {
@@ -1286,6 +1320,24 @@
             ]
           },
           "item": [
+            {
+              "name": "Check Doctor Availability By Date",
+              "description": "Admin checks whether a doctor in this hospital marked the selected date available.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/availability?doctorId={{doctorId}}&date={{scheduleStartDate}}"
+              }
+            },
+            {
+              "name": "List Available Doctors By Date",
+              "description": "Admin lists doctors in this hospital who marked the selected date available.",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/appointments/availability/doctors?date={{scheduleStartDate}}"
+              }
+            },
             {
               "name": "Book Appointment For Patient",
               "event": [

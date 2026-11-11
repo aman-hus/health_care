@@ -5,6 +5,7 @@ import com.aman.hospital_management.dto.MyProfileResponse;
 import com.aman.hospital_management.dto.DoctorAvailabilityRequest;
 import com.aman.hospital_management.dto.DoctorDateAvailabilityResponse;
 import com.aman.hospital_management.dto.DoctorAvailabilityScheduleRequest;
+import com.aman.hospital_management.dto.DoctorAvailabilityPageResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/users")
@@ -39,6 +43,18 @@ public class UserController {
             @Valid @RequestBody DoctorAvailabilityRequest request) {
         return userDirectoryService.updateDoctorAvailability(authentication.getName(), request.date(), request.available(),
                 request.workingStartTime(), request.workingEndTime());
+    }
+
+    @GetMapping("/me/availability")
+    public DoctorAvailabilityPageResponse getMyAvailability(Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "page must be 0 or greater and size must be between 1 and 100.");
+        }
+        return userDirectoryService.getMyAvailability(authentication.getName(),
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "date")));
     }
 
     @PutMapping("/me/availability/schedule")

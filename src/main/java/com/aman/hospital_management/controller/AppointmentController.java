@@ -6,6 +6,7 @@ import com.aman.hospital_management.dto.RescheduleAppointmentRequest;
 import com.aman.hospital_management.dto.DoctorDateAvailabilityResponse;
 import com.aman.hospital_management.dto.AvailableDoctorResponse;
 import com.aman.hospital_management.dto.DoctorTimeSlotResponse;
+import com.aman.hospital_management.dto.DoctorAvailabilityPageResponse;
 import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.service.AppointmentService;
 import jakarta.validation.Valid;
@@ -18,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -45,6 +48,18 @@ public class AppointmentController {
     @GetMapping("/availability/slots")
     public List<DoctorTimeSlotResponse> availableSlots(@RequestParam Long doctorId, @RequestParam LocalDate date) {
         return appointmentService.getAvailableSlots(doctorId, date);
+    }
+
+    @GetMapping("/availability/calendar")
+    public DoctorAvailabilityPageResponse availabilityCalendar(@RequestParam Long doctorId,
+                                                                @RequestParam(defaultValue = "0") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "page must be 0 or greater and size must be between 1 and 100.");
+        }
+        return appointmentService.getAvailabilityCalendar(doctorId,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "date")));
     }
 
     @GetMapping("/mine")
