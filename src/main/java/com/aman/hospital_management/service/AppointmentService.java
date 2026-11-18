@@ -12,6 +12,7 @@ import com.aman.hospital_management.model.Appointment;
 import com.aman.hospital_management.model.AppointmentStatus;
 import com.aman.hospital_management.model.Role;
 import com.aman.hospital_management.repository.AppointmentRepository;
+import com.aman.hospital_management.repository.ConsultationRepository;
 import com.aman.hospital_management.repository.UserRepository;
 import com.aman.hospital_management.repository.HospitalRepository;
 import com.aman.hospital_management.repository.HospitalMembershipRepository;
@@ -38,6 +39,7 @@ public class AppointmentService {
     private static final int APPOINTMENT_DURATION_MINUTES = 20;
     private static final int BREAK_BETWEEN_APPOINTMENTS_MINUTES = 10;
     private final AppointmentRepository appointmentRepository;
+    private final ConsultationRepository consultationRepository;
     private final UserRepository userRepository;
     private final HospitalRepository hospitalRepository;
     private final HospitalMembershipRepository membershipRepository;
@@ -230,8 +232,14 @@ public class AppointmentService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "You can only reschedule appointments associated with your account.");
         }
-        if (appointment.getStatus() == AppointmentStatus.REJECTED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "A rejected appointment cannot be rescheduled.");
+        if (appointment.getStatus() != AppointmentStatus.SCHEDULED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only scheduled appointments can be rescheduled.");
+        }
+        if (consultationRepository.existsByAppointment_IdAndHospital_Id(
+                appointment.getId(), HospitalContext.requireHospitalId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "An appointment with a consultation cannot be rescheduled.");
         }
         ensureSlotAvailable(appointment.getDoctor(), appointmentAt, appointment.getId());
         appointment.reschedule(appointmentAt);
@@ -321,6 +329,12 @@ public class AppointmentService {
         if (!isOwner) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "You can only delete appointments associated with your account.");
+        }
+
+        if (consultationRepository.existsByAppointment_IdAndHospital_Id(
+                appointment.getId(), HospitalContext.requireHospitalId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "An appointment with a consultation cannot be deleted.");
         }
 
         appointmentRepository.delete(appointment);

@@ -159,6 +159,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/nurse/**").hasRole("NURSE")
                         .requestMatchers("/api/medical-staff/**").hasRole("MEDICAL_STAFF")
                         .requestMatchers("/api/medical-records/**").hasAnyRole("DOCTOR", "NURSE")
+                        .requestMatchers(HttpMethod.POST, "/api/appointments/*/consultation").hasRole("DOCTOR")
+                        .requestMatchers("/api/consultations/**").hasRole("DOCTOR")
                         .requestMatchers(HttpMethod.GET, "/api/appointments/availability/calendar")
                                 .hasAnyRole("ADMIN", "DOCTOR", "PATIENT", "NURSE", "MEDICAL_STAFF")
                         .requestMatchers("/api/appointments/**").hasAnyRole("ADMIN", "NURSE", "DOCTOR", "PATIENT")

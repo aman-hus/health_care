@@ -1303,6 +1303,311 @@
                 },
                 "url": "{{baseUrl}}/api/users/me/availability"
               }
+            },
+            {
+              "name": "Consultation Workflow",
+              "description": "Doctor-only, hospital-scoped workflow. Start after accepting an appointment (status SCHEDULED). Save sections in order. Each successful response returns an ETag; use it in If-Match for the next write to prevent overwriting another edit.",
+              "item": [
+                {
+                  "name": "Start or Resume Consultation",
+                  "description": "Requires a doctor token and appointment assigned to that doctor with status SCHEDULED. Idempotently creates or returns the consultation.",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "url": "{{baseUrl}}/api/appointments/{{appointmentId}}/consultation"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Consultation started or resumed', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationId', body.id); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Get Consultation",
+                  "description": "Fetches current consultation data and refreshes the version used for optimistic concurrency.",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Consultation loaded', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Save Diagnosis and Clinical Assessment",
+                  "description": "Step 1. Required: primaryDiagnosis, diagnosisType (SUSPECTED or CONFIRMED), severity (MILD, MODERATE, SEVERE, CRITICAL), symptoms. Optional: medicalHistoryContext, assessmentNotes. Upload reports through Upload Diagnostic Document.",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/diagnosis",
+                    "body": {
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"primaryDiagnosis\": \"General Consultation\",\n  \"diagnosisType\": \"CONFIRMED\",\n  \"severity\": \"MODERATE\",\n  \"symptoms\": \"{{consultationSymptoms}}\",\n  \"medicalHistoryContext\": \"{{medicalHistoryContext}}\",\n  \"assessmentNotes\": \"{{assessmentNotes}}\"\n}",
+                      "mode": "raw"
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Diagnosis saved', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Upload Diagnostic Document",
+                  "description": "Optional. Choose a PDF/JPEG/PNG/WEBP file in Postman form-data key file (maximum 5 MB). Requires current If-Match. The response adds document metadata under diagnosisData.documents.",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/documents",
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "src": [],
+                          "key": "file",
+                          "type": "file"
+                        }
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Diagnostic document uploaded', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); const docs=(body.diagnosisData && body.diagnosisData.documents) || []; if(docs.length) pm.environment.set('documentId', docs[docs.length-1].id); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Save Patient Evaluation",
+                  "description": "Step 2. Required: examinationNotes. Optional: generalAppearance, systemicFindings, additionalTests, vitals object. Vitals may include bloodPressureSystolic, bloodPressureDiastolic, pulseRate, temperatureC, respiratoryRate, oxygenSaturationPct, weightKg, heightCm, bmi.",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/evaluation",
+                    "body": {
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"generalAppearance\": \"Alert, oriented, in no acute distress\",\n  \"systemicFindings\": \"{{systemicFindings}}\",\n  \"examinationNotes\": \"{{examinationNotes}}\",\n  \"additionalTests\": \"{{additionalTests}}\",\n  \"vitals\": {\n    \"bloodPressureSystolic\": 120,\n    \"bloodPressureDiastolic\": 80,\n    \"pulseRate\": 76,\n    \"temperatureC\": 36.8,\n    \"respiratoryRate\": 18,\n    \"oxygenSaturationPct\": 99,\n    \"weightKg\": 70,\n    \"heightCm\": 172\n  }\n}",
+                      "mode": "raw"
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Patient evaluation saved', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Save Care Plan",
+                  "description": "Step 3. Required: treatmentSummary. Optional: medicationGuidance, lifestyleGuidance, followUpDays (nonnegative integer), followUpNotes, investigations array, warningSigns.",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      "CBC],\n  \"warningSigns\": \"{{warningSigns}}\"\n}"
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/care-plan",
+                    "body": {
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "mode": "raw",
+                      "raw": "{\n  \"treatmentSummary\": \"{{treatmentSummary}}\",\n  \"medicationGuidance\": \"{{medicationGuidance}}\",\n  \"lifestyleGuidance\": \"{{lifestyleGuidance}}\",\n  \"followUpDays\": 7,\n  \"followUpNotes\": \"{{followUpNotes}}\",\n  \"investigations\": [\"CBC\"],\n  \"warningSigns\": \"{{warningSigns}}\"\n}"
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          },
+                          {
+                            "key": "If-Match",
+                            "value": "{{consultationVersion}}"
+                          }
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Save Fees",
+                  "description": "Step 4. Required: consultationFee. Optional procedureCharges, facilityFee, discountAmount, taxAmount (default zero), paymentStatus (PENDING, PAID, PARTIALLY_PAID, WAIVED, REFUNDED), paymentChannel, billingRemarks. totalAmount is computed by the server.",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/fees",
+                    "body": {
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"consultationFee\": 500,\n  \"procedureCharges\": 0,\n  \"facilityFee\": 50,\n  \"discountAmount\": 0,\n  \"taxAmount\": 0,\n  \"paymentStatus\": \"PENDING\",\n  \"paymentChannel\": \"ONLINE\",\n  \"billingRemarks\": \"{{billingRemarks}}\"\n}",
+                      "mode": "raw"
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Fees saved', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Save Prescription",
+                  "description": "Step 5. prescriptionNotes is optional; medicines is an optional list. Each medicine requires medicineName, dosage, timing, duration; instructions is optional. An empty medicines list is allowed.",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/prescription",
+                    "body": {
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"prescriptionNotes\": \"{{prescriptionNotes}}\",\n  \"medicines\": [\n    {\n      \"medicineName\": \"{{medicineName}}\",\n      \"dosage\": \"1 tablet\",\n      \"timing\": \"Morning + Night\",\n      \"duration\": \"5 Days\",\n      \"instructions\": \"Take after food\"\n    }\n  ]\n}",
+                      "mode": "raw"
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Prescription saved', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Complete Consultation",
+                  "description": "Final action. All five sections must be valid and saved. Marks consultation and appointment COMPLETED. Requires current If-Match.",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
+                    ],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/complete"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Consultation completed', function () { pm.response.to.have.status(200); const body=pm.response.json(); pm.environment.set('consultationVersion', pm.response.headers.get('ETag') || String(body.version)); pm.expect(body.status).to.eql('COMPLETED'); });"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Get Diagnostic Document Download Link",
+                  "description": "Returns a short-lived signed Cloudinary URL for an uploaded diagnostic document. Document access is restricted to the assigned doctor.",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{baseUrl}}/api/consultations/{{consultationId}}/documents/{{documentId}}/download"
+                  }
+                }
+              ]
             }
           ]
         },

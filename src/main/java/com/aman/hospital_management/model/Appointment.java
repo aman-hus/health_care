@@ -70,5 +70,6 @@ public class Appointment {
     public AppointmentStatus getStatus() { return status; }
     public void accept() { this.status = AppointmentStatus.SCHEDULED; }
     public void reject() { this.status = AppointmentStatus.REJECTED; }
+    public void complete() { this.status = AppointmentStatus.COMPLETED; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
