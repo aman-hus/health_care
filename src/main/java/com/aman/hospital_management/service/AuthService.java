@@ -122,8 +122,18 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
 
-        AppUser user = userRepository.findByEmailOrContactNumber(
-                        request.getIdentifier(), request.getIdentifier())
+        boolean hasEmail = request.getEmail() != null && !request.getEmail().isBlank();
+        boolean hasContactNumber = request.getContactNumber() != null && !request.getContactNumber().isBlank();
+        if (hasEmail == hasContactNumber) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Provide exactly one of email or contactNumber.");
+        }
+
+        String loginEmail = hasEmail ? request.getEmail().trim() : null;
+        String loginContactNumber = hasContactNumber ? request.getContactNumber().trim() : null;
+        AppUser user = (hasEmail
+                        ? userRepository.findByEmail(loginEmail)
+                        : userRepository.findByContactNumber(loginContactNumber))
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         Authentication authentication =

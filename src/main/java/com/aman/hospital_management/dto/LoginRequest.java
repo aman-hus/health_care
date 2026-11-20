@@ -1,13 +1,16 @@
 package com.aman.hospital_management.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 
 public class LoginRequest {
-    @NotBlank(message = "Email or phone number is required")
-    @JsonAlias("email")
-    private String identifier;
+    @Email(message = "Invalid email format")
+    private String email;
+
+    @Size(max = 30, message = "Phone number must be at most 30 characters")
+    private String contactNumber;
 
     @NotBlank(message = "Password is required")
     private String password;
@@ -18,12 +21,20 @@ public class LoginRequest {
     }
 
 
-    public String getIdentifier() {
-        return identifier;
+    public String getEmail() {
+        return email;
     }
 
-    public void setIdentifier(String identifier) {
-        this.identifier = identifier;
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
     }
 
     public String getPassword() {
