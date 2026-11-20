@@ -1,0 +1,50 @@
+{
+  "info": {
+    "_postman_id": "157739f5-625f-40d6-9db2-1b28dbbc2e0b",
+    "name": "Consultation Care Plan Recovery",
+    "description": "Fresh standalone Care Plan request to replace a stale or broken saved Postman request reference.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "f652e2b6-04de-4588-b624-22661f17cc71",
+      "name": "Save Care Plan (Fresh Request)",
+      "request": {
+        "id": "761fd17d-256d-433b-88f4-49b7644aae2f",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{doctorToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "If-Match",
+            "value": "{{consultationVersion}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"treatmentSummary\": \"{{treatmentSummary}}\",\n  \"medicationGuidance\": \"{{medicationGuidance}}\",\n  \"lifestyleGuidance\": \"{{lifestyleGuidance}}\",\n  \"followUpDays\": 7,\n  \"followUpNotes\": \"{{followUpNotes}}\",\n  \"investigations\": \"CBC\",\n  \"warningSigns\": \"{{warningSigns}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/consultations/{{consultationId}}/care-plan"
+      }
+    }
+  ]
+}
