@@ -122,10 +122,14 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
 
+        AppUser user = userRepository.findByEmailOrContactNumber(
+                        request.getIdentifier(), request.getIdentifier())
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
         Authentication authentication =
                 authenticationManager.authenticate(
                         new UsernamePasswordAuthenticationToken(
-                                request.getEmail(),
+                                user.getEmail(),
                                 request.getPassword()
                         )
                 );
@@ -134,12 +138,6 @@ public class AuthService {
         UserDetails userDetails =
                 (UserDetails) authentication.getPrincipal();
 
-
-        AppUser user =
-                userRepository.findByEmail(request.getEmail())
-                        .orElseThrow(() ->
-                                new UserNotFoundException("User not found")
-                        );
 
         var memberships = membershipRepository.findByUser_EmailAndEnabledTrue(user.getEmail());
         if (user.getRole() == Role.PLATFORM_ADMIN && memberships.isEmpty() && request.getHospitalId() == null) {
