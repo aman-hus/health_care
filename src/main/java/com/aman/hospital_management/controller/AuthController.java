@@ -2,6 +2,7 @@ package com.aman.hospital_management.controller;
 
 import com.aman.hospital_management.dto.AuthResponse;
 import com.aman.hospital_management.dto.LoginRequest;
+import com.aman.hospital_management.dto.ForgotPasswordRequest;
 import com.aman.hospital_management.dto.BootstrapAdminRequest;
 import com.aman.hospital_management.dto.UserResponse;
 import com.aman.hospital_management.dto.HospitalSummary;
@@ -47,6 +48,16 @@ public class AuthController {
                 authService.login(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<java.util.Map<String, String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "If the details match an account, the password reset request was processed."
+        ));
     }
 
     @PostMapping("/logout")

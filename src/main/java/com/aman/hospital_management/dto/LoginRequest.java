@@ -2,12 +2,15 @@ package com.aman.hospital_management.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 
 public class LoginRequest {
-    @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
     private String email;
+
+    @Size(max = 30, message = "Phone number must be at most 30 characters")
+    private String contactNumber;
 
     @NotBlank(message = "Password is required")
     private String password;
@@ -26,6 +29,13 @@ public class LoginRequest {
         this.email = email;
     }
 
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
 
     public String getPassword() {
         return password;

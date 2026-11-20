@@ -105,13 +105,13 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain authEndpoints(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/api/auth/login", "/api/auth/bootstrap-admin", "/api/auth/hospitals")
+                .securityMatcher("/api/auth/login", "/api/auth/forgot-password", "/api/auth/bootstrap-admin", "/api/auth/hospitals")
                 .cors(cors -> {})
                 .csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/bootstrap-admin", "/api/auth/hospitals").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/forgot-password", "/api/auth/bootstrap-admin", "/api/auth/hospitals").permitAll()
                         .anyRequest().denyAll());
 
         return http.build();

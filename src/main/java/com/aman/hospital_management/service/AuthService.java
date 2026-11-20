@@ -3,6 +3,7 @@ package com.aman.hospital_management.service;
 import com.aman.hospital_management.dto.AuthResponse;
 import com.aman.hospital_management.dto.BootstrapAdminRequest;
 import com.aman.hospital_management.dto.LoginRequest;
+import com.aman.hospital_management.dto.ForgotPasswordRequest;
 import com.aman.hospital_management.dto.RegisterRequest;
 import com.aman.hospital_management.exception.EmailAlreadyExistsException;
 import com.aman.hospital_management.exception.UserNotFoundException;
@@ -122,10 +123,24 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
 
+        boolean hasEmail = request.getEmail() != null && !request.getEmail().isBlank();
+        boolean hasContactNumber = request.getContactNumber() != null && !request.getContactNumber().isBlank();
+        if (hasEmail == hasContactNumber) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Provide exactly one of email or contactNumber.");
+        }
+
+        String loginEmail = hasEmail ? request.getEmail().trim() : null;
+        String loginContactNumber = hasContactNumber ? request.getContactNumber().trim() : null;
+        AppUser user = (hasEmail
+                        ? userRepository.findByEmail(loginEmail)
+                        : userRepository.findByContactNumber(loginContactNumber))
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
         Authentication authentication =
                 authenticationManager.authenticate(
                         new UsernamePasswordAuthenticationToken(
-                                request.getEmail(),
+                                user.getEmail(),
                                 request.getPassword()
                         )
                 );
@@ -134,12 +149,6 @@ public class AuthService {
         UserDetails userDetails =
                 (UserDetails) authentication.getPrincipal();
 
-
-        AppUser user =
-                userRepository.findByEmail(request.getEmail())
-                        .orElseThrow(() ->
-                                new UserNotFoundException("User not found")
-                        );
 
         var memberships = membershipRepository.findByUser_EmailAndEnabledTrue(user.getEmail());
         if (user.getRole() == Role.PLATFORM_ADMIN && memberships.isEmpty() && request.getHospitalId() == null) {
@@ -172,5 +181,26 @@ public class AuthService {
                 user.getProfileImageUrl(),
                 user.getMrnNumber()
         );
+    }
+
+    @Transactional
+    public void resetPassword(ForgotPasswordRequest request) {
+        boolean hasEmail = request.getEmail() != null && !request.getEmail().isBlank();
+        boolean hasContactNumber = request.getContactNumber() != null && !request.getContactNumber().isBlank();
+        if (hasEmail == hasContactNumber) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Provide exactly one of email or contactNumber.");
+        }
+
+        String identifier = hasEmail ? request.getEmail().trim() : request.getContactNumber().trim();
+        var matchingUser = hasEmail
+                ? userRepository.findByEmailAndDateOfBirth(identifier, request.getDateOfBirth())
+                : userRepository.findByContactNumberAndDateOfBirth(identifier, request.getDateOfBirth());
+
+        // Keep the response identical for a match and a non-match to avoid account enumeration.
+        if (matchingUser.size() == 1) matchingUser.ifPresent(user -> {
+            user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+        });
     }
 }

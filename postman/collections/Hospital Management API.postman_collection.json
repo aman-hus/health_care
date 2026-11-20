@@ -317,6 +317,73 @@
           }
         },
         {
+          "name": "Contact Number Login",
+          "description": "Logs in using a user's registered contact number, password, and hospitalId. Set loginContactNumber, loginPassword, and hospitalId in the environment. Email-based login remains supported.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contact number login returns a token', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.role).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('profileToken', body.token);",
+                  "    pm.environment.set('userToken', body.token);",
+                  "    pm.environment.set('userId', body.userId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactNumber\": \"{{loginContactNumber}}\",\n  \"password\": \"{{loginPassword}}\",\n  \"hospitalId\": {{hospitalId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Forgot Password (DOB verification)",
+          "description": "Submits a password reset using exactly one account identifier (email or contact number), date of birth in YYYY-MM-DD format, and the new password. This flow does not send an email, WhatsApp, or SMS. Set recoveryContactNumber, recoveryDateOfBirth, and recoveryNewPassword; use recoveryEmail instead of recoveryContactNumber if recovering by email.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Forgot password request is accepted with a generic response', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().message).to.eql('If the details match an account, the password reset request was processed.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactNumber\": \"{{recoveryContactNumber}}\",\n  \"dateOfBirth\": \"{{recoveryDateOfBirth}}\",\n  \"newPassword\": \"{{recoveryNewPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/forgot-password"
+          }
+        },
+        {
           "name": "Logout",
           "description": "Revokes the bearer token saved as profileToken by the last successful login request.",
           "event": [
@@ -1465,7 +1532,14 @@
                   "request": {
                     "method": "PUT",
                     "header": [
-                      "CBC],\n  \"warningSigns\": \"{{warningSigns}}\"\n}"
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "If-Match",
+                        "value": "{{consultationVersion}}"
+                      }
                     ],
                     "url": "{{baseUrl}}/api/consultations/{{consultationId}}/care-plan",
                     "body": {
@@ -1475,7 +1549,7 @@
                         }
                       },
                       "mode": "raw",
-                      "raw": "{\n  \"treatmentSummary\": \"{{treatmentSummary}}\",\n  \"medicationGuidance\": \"{{medicationGuidance}}\",\n  \"lifestyleGuidance\": \"{{lifestyleGuidance}}\",\n  \"followUpDays\": 7,\n  \"followUpNotes\": \"{{followUpNotes}}\",\n  \"investigations\": [\"CBC\"],\n  \"warningSigns\": \"{{warningSigns}}\"\n}"
+                      "raw": "{\n  \"treatmentSummary\": \"{{treatmentSummary}}\",\n  \"medicationGuidance\": \"{{medicationGuidance}}\",\n  \"lifestyleGuidance\": \"{{lifestyleGuidance}}\",\n  \"followUpDays\": 7,\n  \"followUpNotes\": \"{{followUpNotes}}\",\n  \"investigations\": \"CBC\",\n  \"warningSigns\": \"{{warningSigns}}\"\n}"
                     }
                   },
                   "event": [
