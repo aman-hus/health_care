@@ -56,7 +56,7 @@ public class AuthController {
     ) {
         authService.resetPassword(request);
         return ResponseEntity.ok(java.util.Map.of(
-                "message", "If the details match an account, the password reset request was processed."
+                "message", "Password reset successfully."
         ));
     }
 

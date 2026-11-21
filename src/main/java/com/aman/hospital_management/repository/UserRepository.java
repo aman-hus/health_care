@@ -12,7 +12,7 @@ public interface UserRepository extends JpaRepository<AppUser,Long> {
 
     Optional<AppUser> findByContactNumber(String contactNumber);
 
-    Optional<AppUser> findByEmailAndDateOfBirth(String email, LocalDate dateOfBirth);
+    List<AppUser> findByEmailAndDateOfBirth(String email, LocalDate dateOfBirth);
 
     List<AppUser> findByContactNumberAndDateOfBirth(String contactNumber, LocalDate dateOfBirth);
 

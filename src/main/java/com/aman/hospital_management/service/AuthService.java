@@ -198,9 +198,10 @@ public class AuthService {
                 : userRepository.findByContactNumberAndDateOfBirth(identifier, request.getDateOfBirth());
 
         // Keep the response identical for a match and a non-match to avoid account enumeration.
-        if (matchingUser.size() == 1) matchingUser.ifPresent(user -> {
+        if (matchingUser.size() == 1) {
+            AppUser user = matchingUser.get(0);
             user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
             userRepository.save(user);
-        });
+        }
     }
 }

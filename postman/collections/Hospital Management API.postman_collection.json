@@ -361,9 +361,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Forgot password request is accepted with a generic response', function () {",
+                  "pm.test('Forgot password request returns success', function () {",
                   "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json().message).to.eql('If the details match an account, the password reset request was processed.');",
+                  "    pm.expect(pm.response.json().message).to.eql('Password reset successfully.');",
                   "});"
                 ]
               }
